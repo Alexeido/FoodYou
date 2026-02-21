@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -436,6 +437,146 @@ private fun ExpandedCardContent(
 private fun RoundedSquare(color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.size(16.dp).clip(MaterialTheme.shapes.extraSmall)) {
         drawRect(color = color, size = size)
+    }
+}
+
+@Composable
+internal fun GoalsMiniBar(
+    energy: Int,
+    energyGoal: Int,
+    proteins: Int,
+    proteinsGoal: Int,
+    carbohydrates: Int,
+    carbohydratesGoal: Int,
+    fats: Int,
+    fatsGoal: Int,
+    modifier: Modifier = Modifier,
+) {
+    val nutrientsPalette = LocalNutrientsPalette.current
+    val nutrientsOrder = LocalNutrientsOrder.current
+    val energyFormatter = LocalEnergyFormatter.current
+    val colorScheme = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = colorScheme.surfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            MiniMacroColumn(
+                label = energyFormatter.suffix(),
+                value = energyFormatter.formatEnergy(energy, withSuffix = false),
+                goal = energyFormatter.formatEnergy(energyGoal, withSuffix = false),
+                progress = if (energyGoal > 0) (energy.toFloat() / energyGoal).coerceIn(0f, 1f) else 0f,
+                barColor = colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+
+            nutrientsOrder.forEach { field ->
+                when (field) {
+                    NutrientsOrder.Proteins ->
+                        MiniMacroColumn(
+                            label = stringResource(Res.string.nutriment_proteins_short),
+                            value = "$proteins",
+                            goal = "$proteinsGoal",
+                            progress = if (proteinsGoal > 0) (proteins.toFloat() / proteinsGoal).coerceIn(0f, 1f) else 0f,
+                            barColor = nutrientsPalette.proteinsOnSurfaceContainer,
+                            suffix = stringResource(Res.string.unit_gram_short),
+                            modifier = Modifier.weight(1f),
+                        )
+
+                    NutrientsOrder.Carbohydrates ->
+                        MiniMacroColumn(
+                            label = stringResource(Res.string.nutriment_carbohydrates_short),
+                            value = "$carbohydrates",
+                            goal = "$carbohydratesGoal",
+                            progress = if (carbohydratesGoal > 0) (carbohydrates.toFloat() / carbohydratesGoal).coerceIn(0f, 1f) else 0f,
+                            barColor = nutrientsPalette.carbohydratesOnSurfaceContainer,
+                            suffix = stringResource(Res.string.unit_gram_short),
+                            modifier = Modifier.weight(1f),
+                        )
+
+                    NutrientsOrder.Fats ->
+                        MiniMacroColumn(
+                            label = stringResource(Res.string.nutriment_fats_short),
+                            value = "$fats",
+                            goal = "$fatsGoal",
+                            progress = if (fatsGoal > 0) (fats.toFloat() / fatsGoal).coerceIn(0f, 1f) else 0f,
+                            barColor = nutrientsPalette.fatsOnSurfaceContainer,
+                            suffix = stringResource(Res.string.unit_gram_short),
+                            modifier = Modifier.weight(1f),
+                        )
+
+                    NutrientsOrder.Other,
+                    NutrientsOrder.Vitamins,
+                    NutrientsOrder.Minerals -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniMacroColumn(
+    label: String,
+    value: String,
+    goal: String,
+    progress: Float,
+    barColor: Color,
+    modifier: Modifier = Modifier,
+    suffix: String = "",
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+    )
+    val colorScheme = MaterialTheme.colorScheme
+    val typography = MaterialTheme.typography
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = label,
+            style = typography.labelSmall,
+            color = colorScheme.outline,
+        )
+        Text(
+            text = buildAnnotatedString {
+                withStyle(
+                    typography.labelMedium
+                        .copy(color = barColor)
+                        .toSpanStyle(),
+                ) {
+                    append(value)
+                }
+                withStyle(
+                    typography.labelSmall
+                        .copy(color = colorScheme.outline)
+                        .toSpanStyle(),
+                ) {
+                    append(" /$goal$suffix")
+                }
+            },
+        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 2.dp,
+                        topEnd = 2.dp,
+                        bottomStart = 2.dp,
+                        bottomEnd = 2.dp,
+                    )
+                ),
+        ) {
+            drawRect(color = barColor.copy(alpha = 0.25f), size = size)
+            drawRect(color = barColor, size = Size(size.width * animatedProgress, size.height))
+        }
     }
 }
 
