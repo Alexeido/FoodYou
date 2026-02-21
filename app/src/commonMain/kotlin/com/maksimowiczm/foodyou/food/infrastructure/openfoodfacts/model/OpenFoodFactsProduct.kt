@@ -10,4 +10,5 @@ interface OpenFoodFactsProduct {
     val servingQuantityUnit: String?
     val nutritionFacts: OpenFoodFactsNutrients?
     val url: String?
+    val categories: List<String>?
 }

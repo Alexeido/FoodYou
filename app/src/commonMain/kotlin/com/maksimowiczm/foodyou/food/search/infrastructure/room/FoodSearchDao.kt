@@ -177,6 +177,124 @@ interface FoodSearchDao {
     )
     fun observeFoodCountByBarcode(barcode: String, source: FoodSourceType?): Flow<Int>
 
+    /* Favorites-specific queries */
+    @Query(
+        """
+        SELECT $PRODUCT_FOOD_SEARCH_SQL_SELECT, NULL AS measurementType, NULL AS measurementValue
+        FROM Product p
+            WHERE
+                p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        ORDER BY headline COLLATE NOCASE ASC
+        """
+    )
+    fun observeFavorites(source: com.maksimowiczm.foodyou.common.infrastructure.room.FoodSourceType?): PagingSource<Int, FoodSearch>
+
+    @Query(
+        """
+        WITH ProductsSearch AS (
+            SELECT $PRODUCT_FOOD_SEARCH_SQL_SELECT
+            FROM Product p JOIN ProductFts fts ON p.id = fts.rowid
+            WHERE
+                (ProductFts MATCH :query || '*') AND p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        ),
+        RecipesSearch AS (
+            SELECT $RECIPE_FOOD_SEARCH_SQL_SELECT
+            FROM Recipe r JOIN RecipeFts fts ON r.id = fts.rowid
+            WHERE
+                -- All recipes are from the user
+                :source = ${FoodSourceTypeSQLConstants.USER} AND
+                (RecipeFts MATCH :query || '*') AND
+                (:excludedRecipeId IS NULL OR r.id != :excludedRecipeId) AND
+                (:excludedRecipeId IS NULL OR NOT EXISTS (
+                    SELECT 1
+                    FROM RecipeAllIngredientsView rai
+                    WHERE rai.targetRecipeId = r.id 
+                    AND rai.ingredientId = :excludedRecipeId
+                ))
+        )
+        SELECT *, NULL AS measurementType, NULL AS measurementValue
+        FROM ProductsSearch
+        UNION ALL
+        SELECT *, NULL AS measurementType, NULL AS measurementValue
+        FROM RecipesSearch
+        ORDER BY headline COLLATE NOCASE ASC
+        """
+    )
+    fun observeFavoritesByQuery(
+        query: String,
+        source: FoodSourceType?,
+        excludedRecipeId: Long?,
+    ): PagingSource<Int, FoodSearch>
+    
+
+    @Query(
+        """
+        SELECT $PRODUCT_FOOD_SEARCH_SQL_SELECT, NULL AS measurementType, NULL AS measurementValue
+        FROM Product p
+        WHERE
+            p.barcode LIKE '%' || :barcode || '%' AND
+            p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        ORDER BY headline COLLATE NOCASE ASC
+        """
+    )
+    fun observeFavoritesByBarcode(
+        barcode: String,
+        source: FoodSourceType?,
+    ): PagingSource<Int, FoodSearch>
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM Product p
+            WHERE
+                p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        """
+    )
+    fun observeFavoritesCount(source: FoodSourceType?): Flow<Int>
+
+    @Query(
+        """
+        WITH ProductsSearch AS (
+            SELECT 1
+            FROM Product p JOIN ProductFts fts ON p.id = fts.rowid
+                WHERE
+                    (ProductFts MATCH :query || '*') AND p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        ),
+        RecipesSearch AS (
+            SELECT 1
+            FROM Recipe r JOIN RecipeFts fts ON r.id = fts.rowid
+            WHERE
+                -- All recipes are from the user
+                :source = ${FoodSourceTypeSQLConstants.USER} AND
+                (RecipeFts MATCH :query || '*') AND
+                (:excludedRecipeId IS NULL OR r.id != :excludedRecipeId) AND
+                (:excludedRecipeId IS NULL OR NOT EXISTS (
+                    SELECT 1
+                    FROM RecipeAllIngredientsView rai
+                    WHERE rai.targetRecipeId = r.id 
+                    AND rai.ingredientId = :excludedRecipeId
+                ))
+        )
+        SELECT (SELECT COUNT(*) FROM ProductsSearch) + (SELECT COUNT(*) FROM RecipesSearch) 
+        """
+    )
+    fun observeFavoritesCountByQuery(
+        query: String,
+        source: FoodSourceType?,
+        excludedRecipeId: Long?,
+    ): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM Product p
+        WHERE
+            p.barcode LIKE '%' || :barcode || '%' AND
+            p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        """
+    )
+    fun observeFavoritesCountByBarcode(barcode: String, source: FoodSourceType?): Flow<Int>
+
     @Query(
         """
         WITH ProductsSearch AS (
@@ -412,6 +530,8 @@ p.phosphorusMilli,
 p.seleniumMicro,
 p.iodineMicro,
 p.chromiumMicro,
+p.isFavorite,
+p.categories as categories,
 p.packageWeight as totalWeight,
 p.servingWeight as servingWeight
 """
@@ -465,6 +585,8 @@ NULL AS phosphorusMilli,
 NULL AS seleniumMicro,
 NULL AS iodineMicro,
 NULL AS chromiumMicro,
+NULL AS isFavorite,
+NULL AS categories,
 NULL AS totalWeight,
 NULL AS servingWeight
 """
@@ -518,6 +640,8 @@ phosphorusMilli,
 seleniumMicro,
 iodineMicro,
 chromiumMicro,
+isFavorite as isFavorite,
+categories as categories,
 totalWeight,
 servingWeight,
 measurementType,

@@ -63,6 +63,7 @@ internal fun MealCard(
     onQuickAdd: () -> Unit,
     onEditEntry: (MealEntryModel) -> Unit,
     onDeleteEntry: (MealEntryModel) -> Unit,
+    onToggleEaten: (MealEntryModel) -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -105,6 +106,7 @@ internal fun MealCard(
                 foods = meal.foods,
                 onEditEntry = onEditEntry,
                 onDeleteEntry = onDeleteEntry,
+                onToggleEaten = onToggleEaten,
                 modifier =
                     Modifier.fillMaxWidth()
                         .clip(MaterialTheme.shapes.medium)
@@ -208,6 +210,7 @@ private fun FoodContainer(
     foods: List<MealEntryModel>,
     onEditEntry: (MealEntryModel) -> Unit,
     onDeleteEntry: (MealEntryModel) -> Unit,
+    onToggleEaten: (MealEntryModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -231,6 +234,7 @@ private fun FoodContainer(
                     entry = entry,
                     onEditEntry = onEditEntry,
                     onDeleteEntry = onDeleteEntry,
+                    onToggleEaten = onToggleEaten,
                     shape = shape,
                 )
             }
@@ -269,6 +273,7 @@ private fun FoodContainerItem(
     entry: MealEntryModel,
     onEditEntry: (MealEntryModel) -> Unit,
     onDeleteEntry: (MealEntryModel) -> Unit,
+    onToggleEaten: (MealEntryModel) -> Unit,
     shape: Shape,
     modifier: Modifier = Modifier,
 ) {
@@ -305,6 +310,7 @@ private fun FoodContainerItem(
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = shape,
         modifier = modifier.clickable { showBottomSheet = true },
+        onToggleEaten = onToggleEaten,
     )
 }
 

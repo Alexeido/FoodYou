@@ -7,7 +7,10 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyHorizontalStaggeredGri
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Warning
+import org.jetbrains.compose.resources.stringResource
+import foodyou.app.generated.resources.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.dp
 internal fun FoodSearchFilters(
     uiState: FoodSearchUiState,
     onSource: (FoodFilter.Source) -> Unit,
+    onFavoritesChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
 ) {
@@ -35,11 +39,41 @@ internal fun FoodSearchFilters(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalItemSpacing = 8.dp,
     ) {
+        item {
+            val selectedFavorites = uiState.filter.favorites
+
+            val favColors = FilterChipDefaults.filterChipColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+
+            val favBorder = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = selectedFavorites,
+                borderColor = if (selectedFavorites) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            FilterChip(
+                selected = selectedFavorites,
+                onClick = { onFavoritesChange(!selectedFavorites) },
+                label = { Text(stringResource(Res.string.headline_favorites)) },
+                modifier = Modifier.animateItem(),
+                leadingIcon = { Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) },
+                trailingIcon = {
+                    // Show favorites count when not loading
+                    Text(
+                        text = uiState.favoritesCount.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                colors = favColors,
+                border = favBorder,
+            )
+        }
         items(filters.toList()) { (source, state) ->
             val pages = state.collectAsLazyPagingItems()
             val isLoading = pages.delayedLoadingState()
             val hasError = pages.loadState.hasError
-            val selected = uiState.filter.source == source
+            val selected = !uiState.filter.favorites && uiState.filter.source == source
 
             val colors =
                 if (hasError) {
@@ -72,7 +106,11 @@ internal fun FoodSearchFilters(
 
             FilterChip(
                 selected = selected,
-                onClick = { onSource(source) },
+                onClick = {
+                    // selecting a source clears the favorites-only filter
+                    onFavoritesChange(false)
+                    onSource(source)
+                },
                 label = { Text(source.stringResource()) },
                 modifier = Modifier.animateItem(),
                 leadingIcon = { source.Icon(Modifier.size(FilterChipDefaults.IconSize)) },

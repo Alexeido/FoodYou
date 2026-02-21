@@ -33,6 +33,7 @@ class CreateProductUseCase(
         source: FoodSource,
         nutritionFacts: NutritionFacts,
         history: FoodHistory.CreationHistory,
+        categories: List<String>? = null,
     ): Result<FoodId.Product, CreateProductError> {
         if (name.isBlank()) {
             return logger.logAndReturnFailure(
@@ -55,6 +56,7 @@ class CreateProductUseCase(
                     servingWeight = servingWeight,
                     source = source,
                     nutritionFacts = nutritionFacts,
+                    categories = categories,
                 )
 
             historyRepository.insert(productId, history)

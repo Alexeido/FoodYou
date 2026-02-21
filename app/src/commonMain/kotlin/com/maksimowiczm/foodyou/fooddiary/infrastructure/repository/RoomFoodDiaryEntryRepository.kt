@@ -58,6 +58,7 @@ internal class RoomFoodDiaryEntryRepository(
                     date = LocalDate.fromEpochDays(entity.epochDay),
                     measurement = Measurement.from(entity.measurement, entity.quantity),
                     food = food,
+                    isEaten = entity.isEaten,
                     createdAt = createdAt,
                     updatedAt = updatedAt,
                 )
@@ -88,7 +89,8 @@ internal class RoomFoodDiaryEntryRepository(
                                 mealId = entity.mealId,
                                 date = LocalDate.fromEpochDays(entity.epochDay),
                                 measurement = Measurement.from(entity.measurement, entity.quantity),
-                                food = it,
+                                    food = it,
+                                    isEaten = entity.isEaten,
                                 createdAt = createdAt,
                                 updatedAt = updatedAt,
                             )
@@ -194,6 +196,9 @@ internal class RoomFoodDiaryEntryRepository(
         }
 
     override suspend fun delete(id: FoodDiaryEntryId) = dao.deleteMeasurement(id.value)
+
+    override suspend fun setEaten(id: FoodDiaryEntryId, isEaten: Boolean) =
+        dao.setEaten(id.value, isEaten)
 
     private fun observeFood(measurementEntity: MeasurementEntity): Flow<DiaryFood> =
         measurementEntity.productId?.let { productId -> observeProduct(productId) }
@@ -321,6 +326,7 @@ private fun DiaryFoodProduct.toEntity(): DiaryProductEntity {
         sourceType = source.type.toEntity(),
         sourceUrl = source.url,
         note = note,
+        categories = categories?.joinToString(","),
     )
 }
 
@@ -333,4 +339,5 @@ private fun DiaryProductEntity.toModel(): DiaryFoodProduct =
         isLiquid = isLiquid,
         source = FoodSource(type = sourceType.toDomain(), url = sourceUrl),
         note = note,
+        categories = this.categories?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
     )

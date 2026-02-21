@@ -33,6 +33,7 @@ interface ProductRepository {
         servingWeight: Double?,
         source: FoodSource,
         nutritionFacts: NutritionFacts,
+        categories: List<String>? = null,
     ): FoodId.Product
 
     /**
@@ -51,9 +52,12 @@ interface ProductRepository {
         servingWeight: Double?,
         source: FoodSource,
         nutritionFacts: NutritionFacts,
+        categories: List<String>? = null,
     ): FoodId.Product?
 
     suspend fun updateProduct(product: Product)
 
     suspend fun deleteProduct(product: Product)
+
+    suspend fun updateFavorite(productId: FoodId.Product, isFavorite: Boolean)
 }

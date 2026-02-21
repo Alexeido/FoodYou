@@ -18,6 +18,8 @@ internal data class ProductModel(
     val source: FoodSource,
     override val totalWeight: Double?,
     override val servingWeight: Double?,
+    val categories: List<String>?,
+    val isFavorite: Boolean = false,
 ) : FoodModel {
     constructor(
         product: Product
@@ -30,6 +32,8 @@ internal data class ProductModel(
         source = product.source,
         totalWeight = product.totalWeight,
         servingWeight = product.servingWeight,
+        categories = product.categories,
+        isFavorite = product.isFavorite,
     )
 
     override fun weight(measurement: Measurement): Double =

@@ -34,6 +34,7 @@ fun FoodListItem(
     fats: @Composable () -> Unit,
     calories: @Composable () -> Unit,
     measurement: @Composable () -> Unit,
+    subtitle: (@Composable () -> Unit)? = null,
     isRecipe: Boolean,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
@@ -134,6 +135,7 @@ fun FoodListItem(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     headlineContent()
+                    subtitle?.invoke()
                     supportingContent()
                 }
 

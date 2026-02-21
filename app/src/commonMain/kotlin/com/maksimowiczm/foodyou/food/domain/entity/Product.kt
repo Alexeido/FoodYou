@@ -29,6 +29,8 @@ data class Product(
     override val servingWeight: Double?,
     val source: FoodSource,
     override val nutritionFacts: NutritionFacts,
+    val categories: List<String>? = null,
+    val isFavorite: Boolean = false,
 ) : Food {
     override val totalWeight: Double? = packageWeight
 

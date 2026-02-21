@@ -20,6 +20,8 @@ import com.maksimowiczm.foodyou.common.domain.food.NutrientsHelper
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFacts
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.food.domain.entity.Product
+import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
+import com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategoryFromTags
 import com.maksimowiczm.foodyou.food.domain.entity.RemoteProduct
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -280,6 +282,15 @@ internal fun rememberProductFormState(product: Product? = null): ProductFormStat
         )
     val isLiquid = rememberSaveable(product) { mutableStateOf(product?.isLiquid ?: false) }
 
+    val selectedCategory = rememberSaveable(product) {
+        mutableStateOf(
+            product?.categories?.firstOrNull()?.let { tags ->
+                // product.categories contains tags, map first tag to FoodCategory
+                getFoodCategoryFromTags(listOf(tags))
+            }
+        )
+    }
+
     val isModified =
         remember(product) {
             if (product != null) {
@@ -495,6 +506,7 @@ internal fun rememberProductFormState(product: Product? = null): ProductFormStat
             sourceTypeState = sourceType,
             sourceUrl = sourceUrl,
             isLiquidState = isLiquid,
+            selectedCategoryState = selectedCategory,
             measurementState = measurement,
             packageWeight = packageWeight,
             servingWeight = servingWeight,
@@ -775,6 +787,15 @@ internal fun rememberProductFormState(product: RemoteProduct): ProductFormState 
         )
     val isLiquid = rememberSaveable(product) { mutableStateOf(product.isLiquid) }
 
+    val selectedCategory = rememberSaveable(product) {
+        mutableStateOf(
+            product.categories?.firstOrNull()?.let { tags ->
+                // product.categories contains tags, map first tag to FoodCategory
+                getFoodCategoryFromTags(listOf(tags))
+            }
+        )
+    }
+
     val isModified =
         remember(product) {
             derivedStateOf {
@@ -916,6 +937,7 @@ internal fun rememberProductFormState(product: RemoteProduct): ProductFormState 
             sourceTypeState = sourceType,
             sourceUrl = sourceUrl,
             isLiquidState = isLiquid,
+            selectedCategoryState = selectedCategory,
             measurementState = measurement,
             packageWeight = packageWeight,
             servingWeight = servingWeight,
@@ -1004,6 +1026,7 @@ internal class ProductFormState(
     sourceTypeState: MutableState<FoodSource.Type>,
     val sourceUrl: FormField<String?, Nothing>,
     isLiquidState: MutableState<Boolean>,
+    selectedCategoryState: MutableState<FoodCategory?>,
     // Weight
     measurementState: MutableState<Measurement>,
     val packageWeight: FormField<Float?, ProductFormFieldError>,
@@ -1113,6 +1136,7 @@ internal class ProductFormState(
 
     var sourceType: FoodSource.Type by sourceTypeState
     var isLiquid: Boolean by isLiquidState
+    var selectedCategory: FoodCategory? by selectedCategoryState
     var measurement: Measurement by measurementState
     val isModified: Boolean by isModifiedState
     var autoCalculateEnergy: Boolean by autoCalculateEnergyState

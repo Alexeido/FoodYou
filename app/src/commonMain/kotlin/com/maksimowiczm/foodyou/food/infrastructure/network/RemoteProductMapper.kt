@@ -76,6 +76,7 @@ internal class RemoteProductMapper {
             source = remote.source,
             note = null,
             isLiquid = remote.isLiquid,
+            categories = remote.categories,
         )
     }
 }

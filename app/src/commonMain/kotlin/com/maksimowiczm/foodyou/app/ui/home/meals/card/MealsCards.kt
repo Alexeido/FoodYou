@@ -36,6 +36,7 @@ internal fun MealsCards(
                     onEditEntry(foodEntry?.id?.value, manualEntry?.id?.value)
                 },
                 onDeleteEntry = viewModel::onDeleteEntry,
+                onToggleEaten = viewModel::onToggleEaten,
                 onLongClick = onLongClick,
                 shimmer = homeState.shimmer,
                 contentPadding = contentPadding,
@@ -53,6 +54,7 @@ internal fun MealsCards(
                     onEditEntry(foodEntry?.id?.value, manualEntry?.id?.value)
                 },
                 onDeleteEntry = viewModel::onDeleteEntry,
+                onToggleEaten = viewModel::onToggleEaten,
                 onLongClick = onLongClick,
                 shimmer = homeState.shimmer,
                 contentPadding = contentPadding,

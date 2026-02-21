@@ -63,6 +63,19 @@ abstract class MeasurementDao {
 
     @Query(
         """
+        UPDATE Measurement
+        SET isEaten = :isEaten
+        WHERE id = :id
+        """
+    )
+    protected abstract suspend fun updateMeasurementIsEaten(id: Long, isEaten: Boolean)
+
+    open suspend fun setEaten(id: Long, isEaten: Boolean) {
+        updateMeasurementIsEaten(id, isEaten)
+    }
+
+    @Query(
+        """
         SELECT *
         FROM DiaryProduct
         WHERE id = :id

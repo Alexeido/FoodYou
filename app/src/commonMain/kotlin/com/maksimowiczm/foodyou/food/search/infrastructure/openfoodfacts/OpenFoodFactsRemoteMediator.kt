@@ -164,6 +164,7 @@ internal class OpenFoodFactsRemoteMediator<K : Any, T : Any>(
                 servingWeight = this.servingWeight,
                 source = this.source,
                 nutritionFacts = this.nutritionFacts,
+                categories = this.categories,
             )
 
         if (id != null) {

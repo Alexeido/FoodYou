@@ -1,6 +1,7 @@
 package com.maksimowiczm.foodyou.app.ui.home.meals.card
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +19,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.maksimowiczm.foodyou.app.ui.common.component.FoodErrorListItem
 import com.maksimowiczm.foodyou.app.ui.common.component.FoodListItem
+import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategoryIcon
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalEnergyFormatter
 import com.maksimowiczm.foodyou.app.ui.common.utility.stringResourceWithWeight
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
@@ -30,6 +33,7 @@ internal fun MealFoodListItem(
     contentColor: Color,
     shape: Shape,
     modifier: Modifier = Modifier,
+    onToggleEaten: (MealEntryModel) -> Unit = {},
 ) {
     when (entry) {
         is FoodMealEntryModel ->
@@ -39,6 +43,7 @@ internal fun MealFoodListItem(
                 contentColor = contentColor,
                 shape = shape,
                 modifier = modifier,
+                onToggleEaten = onToggleEaten,
             )
 
         is ManualMealEntryModel ->
@@ -48,6 +53,7 @@ internal fun MealFoodListItem(
                 contentColor = contentColor,
                 shape = shape,
                 modifier = modifier,
+                onToggleEaten = onToggleEaten,
             )
     }
 }
@@ -59,6 +65,7 @@ internal fun MealFoodListItem(
     contentColor: Color,
     shape: Shape,
     modifier: Modifier = Modifier,
+    onToggleEaten: (MealEntryModel) -> Unit = {},
 ) {
     val g = stringResource(Res.string.unit_gram_short)
 
@@ -96,7 +103,36 @@ internal fun MealFoodListItem(
         )
     } else {
         FoodListItem(
-            name = { Text(entry.name) },
+            name = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val (displayName, brand) = remember(entry.name) {
+                            val name = entry.name
+                            if (name.contains(" (") && name.endsWith(")")) {
+                                val idx = name.lastIndexOf(" (")
+                                val b = name.substring(idx + 2, name.length - 1)
+                                name.substring(0, idx) to b
+                            } else {
+                                name to null
+                            }
+                        }
+
+                        FoodCategoryIcon(category = entry.category)
+                        Column {
+                            Text(displayName)
+                            if (brand != null) {
+                                Text(
+                                    text = brand,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontStyle = FontStyle.Italic,
+                                )
+                            }
+                        }
+                    }
+                },
             proteins = { Text(text = proteinsString, style = MaterialTheme.typography.bodySmall) },
             carbohydrates = {
                 Text(text = carbohydratesString, style = MaterialTheme.typography.bodySmall)
@@ -108,6 +144,12 @@ internal fun MealFoodListItem(
             },
             isRecipe = entry.isRecipe,
             modifier = modifier,
+            trailingContent = {
+                androidx.compose.material3.Checkbox(
+                    checked = entry.isEaten,
+                    onCheckedChange = { onToggleEaten(entry) },
+                )
+            },
             containerColor = color,
             contentColor = contentColor,
             shape = shape,
@@ -123,6 +165,7 @@ internal fun MealFoodListItem(
     contentColor: Color,
     shape: Shape,
     modifier: Modifier = Modifier,
+    onToggleEaten: (MealEntryModel) -> Unit = {},
 ) {
     val g = stringResource(Res.string.unit_gram_short)
 
@@ -152,7 +195,29 @@ internal fun MealFoodListItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(entry.name)
+                    val (displayName, brand) = remember(entry.name) {
+                        val name = entry.name
+                        if (name.contains(" (") && name.endsWith(")")) {
+                            val idx = name.lastIndexOf(" (")
+                            val b = name.substring(idx + 2, name.length - 1)
+                            name.substring(0, idx) to b
+                        } else {
+                            name to null
+                        }
+                    }
+
+                    FoodCategoryIcon(category = entry.category)
+                    Column {
+                        Text(displayName)
+                        if (brand != null) {
+                            Text(
+                                text = brand,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontStyle = FontStyle.Italic,
+                            )
+                        }
+                    }
                     Icon(
                         imageVector = Icons.Outlined.Bolt,
                         contentDescription = null,
@@ -169,6 +234,12 @@ internal fun MealFoodListItem(
             measurement = {},
             isRecipe = false,
             modifier = modifier,
+            trailingContent = {
+                androidx.compose.material3.Checkbox(
+                    checked = entry.isEaten,
+                    onCheckedChange = { onToggleEaten(entry) },
+                )
+            },
             containerColor = color,
             contentColor = contentColor,
             shape = shape,

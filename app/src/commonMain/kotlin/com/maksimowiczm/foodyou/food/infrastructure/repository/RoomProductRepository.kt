@@ -36,6 +36,7 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
         servingWeight: Double?,
         source: FoodSource,
         nutritionFacts: NutritionFacts,
+        categories: List<String>?,
     ): FoodId.Product {
         val product =
             Product(
@@ -49,6 +50,7 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
                 servingWeight = servingWeight,
                 source = source,
                 nutritionFacts = nutritionFacts,
+                categories = categories,
             )
         val entity = product.toEntity()
         val id = productDao.insertProduct(entity)
@@ -65,6 +67,7 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
         servingWeight: Double?,
         source: FoodSource,
         nutritionFacts: NutritionFacts,
+        categories: List<String>?,
     ): FoodId.Product? {
         val product =
             Product(
@@ -78,12 +81,17 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
                 servingWeight = servingWeight,
                 source = source,
                 nutritionFacts = nutritionFacts,
+                categories = categories,
             )
         return productDao.insertUniqueProduct(product.toEntity())?.let(FoodId::Product)
     }
 
     override suspend fun updateProduct(product: Product) {
         productDao.updateProduct(product.toEntity())
+    }
+
+    override suspend fun updateFavorite(productId: FoodId.Product, isFavorite: Boolean) {
+        productDao.updateFavorite(productId.id, isFavorite)
     }
 }
 
@@ -99,6 +107,8 @@ private fun ProductEntity.toModel(): Product =
         servingWeight = this.servingWeight,
         source = FoodSource(type = this.sourceType.toDomain(), url = this.sourceUrl),
         nutritionFacts = this.toNutritionFacts(),
+        categories = this.categories?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
+        isFavorite = this.isFavorite,
     )
 
 private fun ProductEntity.toNutritionFacts(): NutritionFacts =
@@ -121,5 +131,7 @@ private fun Product.toEntity(): ProductEntity {
         sourceType = source.type.toEntity(),
         sourceUrl = source.url,
         isLiquid = isLiquid,
+        categories = this.categories?.joinToString(","),
+        isFavorite = this.isFavorite,
     )
 }

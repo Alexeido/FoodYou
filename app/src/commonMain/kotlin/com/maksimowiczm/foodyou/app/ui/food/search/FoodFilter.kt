@@ -12,7 +12,10 @@ import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Immutable
-internal data class FoodFilter(val source: Source = DefaultFilter) {
+internal data class FoodFilter(
+    val source: Source = DefaultFilter,
+    val favorites: Boolean = false,
+) {
 
     companion object {
         val DefaultFilter = Source.Recent
@@ -23,6 +26,10 @@ internal data class FoodFilter(val source: Source = DefaultFilter) {
             var count = 0
 
             if (source != DefaultFilter) {
+                count++
+            }
+
+            if (favorites) {
                 count++
             }
 

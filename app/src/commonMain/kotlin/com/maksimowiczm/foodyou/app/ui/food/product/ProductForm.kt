@@ -3,11 +3,13 @@ package com.maksimowiczm.foodyou.app.ui.food.product
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +57,7 @@ import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
 
 @Composable
 internal fun ProductForm(
@@ -139,6 +142,50 @@ internal fun ProductForm(
 }
 
 @Composable
+private fun CategoryPicker(
+    selected: FoodCategory?,
+    onSelect: (FoodCategory?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .clickable { expanded = true }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val displayText = selected?.let { "${it.emoji} ${it.label}" } ?: "None"
+        Text(text = displayText, style = MaterialTheme.typography.bodyMedium)
+        Icon(
+            imageVector = Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp).padding(start = 8.dp),
+        )
+
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("None") }, onClick = {
+                onSelect(null)
+                expanded = false
+            })
+
+            for (cat in FoodCategory.values()) {
+                DropdownMenuItem(text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = cat.emoji)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = cat.label)
+                    }
+                }, onClick = {
+                    onSelect(cat)
+                    expanded = false
+                })
+            }
+        }
+    }
+}
+
+@Composable
 private fun General(state: ProductFormState, horizontalPadding: PaddingValues) {
     var showBarcodeScanner by rememberSaveable { mutableStateOf(false) }
     FullScreenCameraBarcodeScanner(
@@ -166,6 +213,13 @@ private fun General(state: ProductFormState, horizontalPadding: PaddingValues) {
 
     state.brand.TextField(
         label = stringResource(Res.string.product_brand),
+        modifier = Modifier.padding(horizontalPadding).fillMaxWidth(),
+    )
+
+    // Category picker: shows selected emoji+label and opens a menu to choose one
+    CategoryPicker(
+        selected = state.selectedCategory,
+        onSelect = { state.selectedCategory = it },
         modifier = Modifier.padding(horizontalPadding).fillMaxWidth(),
     )
 

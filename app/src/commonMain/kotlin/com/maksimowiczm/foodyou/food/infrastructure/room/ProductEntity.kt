@@ -23,4 +23,6 @@ data class ProductEntity(
     val sourceType: FoodSourceType,
     val sourceUrl: String? = null,
     val isLiquid: Boolean,
+    val categories: String? = null,
+    val isFavorite: Boolean = false,
 )

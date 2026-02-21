@@ -114,6 +114,7 @@ private const val FIELDS =
         ",code" +
         ",nutriments" +
         ",brands" +
+        ",categories_tags" +
         ",serving_quantity" +
         ",serving_quantity_unit" +
         ",product_quantity" +

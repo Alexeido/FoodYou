@@ -40,7 +40,7 @@ internal class RoomManualDiaryEntryRepository(private val dao: ManualDiaryEntryD
                 mealId = mealId,
                 date = date,
                 name = name,
-                nutritionFacts = nutritionFacts,
+                rawNutritionFacts = nutritionFacts,
                 createdAt = createdAt,
                 updatedAt = createdAt,
             )
@@ -59,7 +59,7 @@ private fun ManualDiaryEntryEntity.toModel(): ManualDiaryEntry =
         mealId = mealId,
         date = LocalDate.fromEpochDays(dateEpochDay.toInt()),
         name = name,
-        nutritionFacts =
+        rawNutritionFacts =
             toNutritionFacts(nutrients = nutrients, vitamins = vitamins, minerals = minerals),
         createdAt =
             Instant.fromEpochSeconds(createdEpochSeconds)

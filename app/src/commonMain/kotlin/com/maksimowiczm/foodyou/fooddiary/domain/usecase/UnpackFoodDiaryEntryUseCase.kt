@@ -77,6 +77,7 @@ class UnpackFoodDiaryEntryUseCase(
                         date = date,
                         measurement = it.measurement,
                         food = it.food,
+                        isEaten = entry.isEaten,
                         createdAt = entry.createdAt,
                         updatedAt = now,
                     )

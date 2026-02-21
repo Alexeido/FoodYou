@@ -63,6 +63,8 @@ fun FoodSearchApp(
         uiState = viewModel.uiState.collectAsStateWithLifecycle().value,
         onSearch = viewModel::search,
         onSourceChange = viewModel::changeSource,
+        onFavoritesChange = viewModel::setFavoritesOnly,
+        onToggleFavorite = viewModel::toggleFavorite,
         onFoodClick = onFoodClick,
         onUpdateUsdaApiKey = onUpdateUsdaApiKey,
         modifier = modifier,
@@ -74,6 +76,8 @@ private fun FoodSearchApp(
     uiState: FoodSearchUiState,
     onSearch: (String?) -> Unit,
     onSourceChange: (FoodFilter.Source) -> Unit,
+    onFavoritesChange: (Boolean) -> Unit,
+    onToggleFavorite: (com.maksimowiczm.foodyou.food.domain.entity.FoodId.Product, Boolean) -> Unit,
     onFoodClick: (FoodSearch, Measurement) -> Unit,
     onUpdateUsdaApiKey: () -> Unit,
     modifier: Modifier = Modifier,
@@ -162,6 +166,7 @@ private fun FoodSearchApp(
                             coroutineScope.launch { listState.animateScrollToItem(0) }
                         }
                     },
+                    onFavoritesChange = { enabled -> onFavoritesChange(enabled) },
                     modifier = Modifier.height(32.dp + 8.dp + 32.dp).fillMaxWidth(),
                 )
             }
@@ -222,10 +227,11 @@ private fun FoodSearchApp(
                         null -> FoodListItemSkeleton(shimmer)
                         is FoodSearch.Product -> {
                             val measurement = food.suggestedMeasurement
-                            FoodSearchListItem(
+                                FoodSearchListItem(
                                 food = food,
                                 measurement = measurement,
                                 onClick = { onFoodClick(food, measurement) },
+                                    onToggleFavorite = { id, newState -> onToggleFavorite(id, newState) },
                             )
                         }
 

@@ -11,4 +11,5 @@ data class RemoteProduct(
     val servingWeight: Double?,
     val source: FoodSource,
     val isLiquid: Boolean,
+    val categories: List<String>? = null,
 )

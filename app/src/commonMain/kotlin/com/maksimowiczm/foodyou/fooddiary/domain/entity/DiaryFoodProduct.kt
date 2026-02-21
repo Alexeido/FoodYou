@@ -13,6 +13,7 @@ data class DiaryFoodProduct(
     override val isLiquid: Boolean,
     val source: FoodSource,
     override val note: String?,
+    val categories: List<String>? = null,
 ) : DiaryFood {
     override fun weight(measurement: Measurement): Double =
         WeightCalculator.calculateWeight(

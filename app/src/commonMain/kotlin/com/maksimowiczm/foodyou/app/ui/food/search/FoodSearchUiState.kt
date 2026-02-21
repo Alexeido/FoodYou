@@ -11,6 +11,7 @@ internal data class FoodSearchUiState(
     val sources: Map<FoodFilter.Source, FoodSourceUiState>,
     val filter: FoodFilter,
     val recentSearches: List<String>,
+    val favoritesCount: Int = 0,
 ) {
     val currentSourceState: FoodSourceUiState?
         get() = sources[filter.source]

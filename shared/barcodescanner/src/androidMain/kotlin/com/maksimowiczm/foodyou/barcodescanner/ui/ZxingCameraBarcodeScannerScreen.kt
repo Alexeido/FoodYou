@@ -48,6 +48,15 @@ import foodyou.app.generated.resources.Res
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
+private fun extractGtinFromGs1DigitalLink(url: String): String? {
+    val prefix = "https://qrtrack.mercadona.es/01/"
+    if (url.startsWith(prefix)) {
+        val gtinWithLeadingZero = url.substringAfter(prefix).split('/').firstOrNull()
+        return gtinWithLeadingZero?.removePrefix("0")
+    }
+    return null
+}
+
 @Composable
 fun ZxingCameraBarcodeScannerScreen(
     onBarcodeScan: (String) -> Unit,
@@ -60,7 +69,13 @@ fun ZxingCameraBarcodeScannerScreen(
     DisposableEffect(barcodeView) {
         barcodeView?.resume()
 
-        val callback = BarcodeCallback { result -> result?.let { latestOnBarcodeScanned(it.text) } }
+        val callback = BarcodeCallback { result ->
+            result?.let {
+                val scannedText = it.text
+                val gtin = extractGtinFromGs1DigitalLink(scannedText)
+                latestOnBarcodeScanned(gtin ?: scannedText)
+            }
+        }
 
         barcodeView?.decodeSingle(callback)
 

@@ -37,6 +37,7 @@ internal class FoodSearchViewModel(
     private val foodSearchPreferencesRepository: UserPreferencesRepository<FoodSearchPreferences>,
     searchHistoryRepository: FoodSearchHistoryRepository,
     private val foodSearchRepository: FoodSearchRepository,
+    private val productRepository: com.maksimowiczm.foodyou.food.domain.repository.ProductRepository,
     private val foodSearchUseCase: FoodSearchUseCase,
     private val dateProvider: DateProvider,
 ) : ViewModel() {
@@ -53,6 +54,10 @@ internal class FoodSearchViewModel(
 
     fun changeSource(source: FoodFilter.Source) {
         filter.update { it.copy(source = source) }
+    }
+
+    fun setFavoritesOnly(enabled: Boolean) {
+        filter.update { it.copy(favorites = enabled) }
     }
 
     private val foodPreferences =
@@ -130,18 +135,36 @@ internal class FoodSearchViewModel(
         }
 
     private fun observeFoodCount(source: FoodSource.Type) =
-        searchQuery.flatMapLatest { query ->
-            foodSearchRepository.searchFoodCount(
-                query = searchQuery(query),
-                source = source,
-                excludedRecipeId = excludedRecipeId,
-            )
-        }
+        combine(searchQuery, filter) { query, currentFilter -> Pair(query, currentFilter) }
+            .flatMapLatest { (query, currentFilter) ->
+                val q = searchQuery(query)
+
+                if (currentFilter.favorites) {
+                    // When favorites mode is active, aggregate across all sources (pass null)
+                    foodSearchRepository.favoritesCount(
+                        query = q,
+                        source = null,
+                        excludedRecipeId = excludedRecipeId,
+                    )
+                } else {
+                    foodSearchRepository.searchFoodCount(
+                        query = q,
+                        source = source,
+                        excludedRecipeId = excludedRecipeId,
+                    )
+                }
+            }
 
     private fun observeFoodPages(source: FoodSource.Type) =
-        searchQuery.flatMapLatest { query ->
-            foodSearchUseCase.search(query, source, excludedRecipeId)
-        }
+        combine(searchQuery, filter) { query, currentFilter -> Pair(query, currentFilter) }
+            .flatMapLatest { (query, currentFilter) ->
+                if (currentFilter.favorites) {
+                    // Show favorites across all sources when favorites mode is enabled
+                    foodSearchUseCase.searchFavorites(query, null, excludedRecipeId)
+                } else {
+                    foodSearchUseCase.search(query, source, excludedRecipeId)
+                }
+            }
 
     private val searchHistory =
         searchHistoryRepository
@@ -153,7 +176,8 @@ internal class FoodSearchViewModel(
                 initialValue = emptyList(),
             )
 
-    val uiState =
+    // Build base ui state (without favoritesCount) then combine with favorites count flow
+    private val baseUiState =
         combine(
                 recentFoodState,
                 yourFoodState,
@@ -181,8 +205,29 @@ internal class FoodSearchViewModel(
                         ),
                     filter = filter,
                     recentSearches = searchHistory.map { it.query },
+                    favoritesCount = 0,
                 )
             }
+
+    private val favoritesCountFlow =
+        searchQuery.flatMapLatest { q ->
+            val q2 = searchQuery(q)
+            // Aggregate favorites across all sources
+            foodSearchRepository.favoritesCount(q2, source = null, excludedRecipeId = excludedRecipeId)
+        }
+
+    val uiState =
+        combine(baseUiState, favoritesCountFlow) { base, favCount -> base.copy(favoritesCount = favCount) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(2_000),
+                initialValue = FoodSearchUiState(
+                    sources = emptyMap(),
+                    filter = FoodFilter(),
+                    recentSearches = emptyList(),
+                    favoritesCount = 0,
+                ),
+            )
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(2_000),
@@ -195,6 +240,44 @@ internal class FoodSearchViewModel(
             )
 
     init {
+        // React to filter changes (e.g., toggling favorites while in Recent)
+        viewModelScope.launch {
+            filter.collect { currentFilter ->
+                val ui = uiState.value
+
+                if ((currentFilter.source != FoodFilter.Source.Recent &&
+                        currentFilter.source != FoodFilter.Source.YourFood) ||
+                    ui.currentSourceCount.positive()
+                ) {
+                    return@collect
+                }
+
+                val recentCount = ui.sources[FoodFilter.Source.Recent]?.count
+                if (recentCount.positive()) {
+                    changeSource(FoodFilter.Source.Recent)
+                    return@collect
+                }
+
+                val yourFoodCount = ui.sources[FoodFilter.Source.YourFood]?.count
+                if (yourFoodCount.positive()) {
+                    changeSource(FoodFilter.Source.YourFood)
+                    return@collect
+                }
+
+                val openFoodFactsCount = ui.sources[FoodFilter.Source.OpenFoodFacts]?.count
+                if (openFoodFactsCount.positive()) {
+                    changeSource(FoodFilter.Source.OpenFoodFacts)
+                    return@collect
+                }
+
+                val usdaCount = ui.sources[FoodFilter.Source.USDA]?.count
+                if (usdaCount.positive()) {
+                    changeSource(FoodFilter.Source.USDA)
+                    return@collect
+                }
+            }
+        }
+
         searchQuery
             .flatMapLatest { query ->
                 if (query == null) {
@@ -242,6 +325,10 @@ internal class FoodSearchViewModel(
                 switchFlow.takeWhile { Clock.System.now().toEpochMilliseconds() < deadline }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun toggleFavorite(productId: FoodId.Product, newState: Boolean) {
+        viewModelScope.launch { productRepository.updateFavorite(productId, newState) }
     }
 }
 

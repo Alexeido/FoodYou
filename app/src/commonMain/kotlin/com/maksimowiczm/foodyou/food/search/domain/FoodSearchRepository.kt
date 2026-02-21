@@ -24,6 +24,20 @@ interface FoodSearchRepository {
         excludedRecipeId: FoodId.Recipe?,
     ): Flow<PagingData<FoodSearch>>
 
+    // Favorites (local-only) helpers
+    fun favorites(
+        query: SearchQuery,
+        source: FoodSource.Type?,
+        config: PagingConfig,
+        excludedRecipeId: FoodId.Recipe?,
+    ): Flow<PagingData<FoodSearch>>
+
+    fun favoritesCount(
+        query: SearchQuery,
+        source: FoodSource.Type?,
+        excludedRecipeId: FoodId.Recipe?,
+    ): Flow<Int>
+
     fun searchFoodCount(
         query: SearchQuery,
         source: FoodSource.Type,

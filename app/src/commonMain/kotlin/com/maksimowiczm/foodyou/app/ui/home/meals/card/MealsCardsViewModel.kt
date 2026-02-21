@@ -13,6 +13,8 @@ import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryReposi
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.ManualDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.usecase.ObserveDiaryMealsUseCase
 import kotlin.math.roundToInt
+import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
+import com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -64,6 +66,15 @@ internal class MealsCardsViewModel(
             }
         }
     }
+
+    fun onToggleEaten(model: MealEntryModel) {
+        viewModelScope.launch {
+            when (model) {
+                is FoodMealEntryModel -> foodEntryRepository.setEaten(model.id, !model.isEaten)
+                is ManualMealEntryModel -> Unit
+            }
+        }
+    }
 }
 
 private fun DiaryMeal.toMealModel(): MealModel =
@@ -90,6 +101,14 @@ private fun DiaryEntry.toMealEntryModel(): MealEntryModel =
                 proteins = nutritionFacts.proteins.value,
                 carbohydrates = nutritionFacts.carbohydrates.value,
                 fats = nutritionFacts.fats.value,
+                isEaten = isEaten,
+                category = when (food) {
+                    is com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodProduct ->
+                        com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategoryFromTags(food.categories)
+                            .takeIf { it != com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory.UNKNOWN }
+                            ?: com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategory(food.name)
+                    else -> com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategory(food.name)
+                },
                 measurement = measurement,
                 weight = weight,
                 isLiquid = food.isLiquid,
@@ -106,5 +125,7 @@ private fun DiaryEntry.toMealEntryModel(): MealEntryModel =
                 proteins = nutritionFacts.proteins.value,
                 carbohydrates = nutritionFacts.carbohydrates.value,
                 fats = nutritionFacts.fats.value,
+                isEaten = isEaten,
+                category = FoodCategory.UNKNOWN,
             )
     }

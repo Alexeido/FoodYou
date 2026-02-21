@@ -44,6 +44,26 @@ class FoodSearchUseCase(
         }
     }
 
+    fun searchFavorites(
+        query: String?,
+        source: FoodSource.Type?,
+        excludedRecipeId: FoodId.Recipe?,
+    ): Flow<PagingData<FoodSearch>> {
+        val query = searchQuery(query)
+
+        if (query is SearchQuery.Text) {
+            eventBus.publish(FoodSearchEvent(query, dateProvider.nowInstant()))
+        }
+
+        // Favorites are local-only; no remote mediator. `source == null` means all sources.
+        return foodSearchRepository.favorites(
+            query = query,
+            source = source,
+            config = PagingConfig(pageSize = PAGE_SIZE),
+            excludedRecipeId = excludedRecipeId,
+        )
+    }
+
     fun searchRecent(
         query: String?,
         excludedRecipeId: FoodId.Recipe?,

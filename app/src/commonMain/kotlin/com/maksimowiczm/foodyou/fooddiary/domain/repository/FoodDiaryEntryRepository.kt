@@ -24,4 +24,6 @@ interface FoodDiaryEntryRepository {
     suspend fun update(entry: FoodDiaryEntry)
 
     suspend fun delete(id: FoodDiaryEntryId)
+    
+    suspend fun setEaten(id: FoodDiaryEntryId, isEaten: Boolean)
 }
