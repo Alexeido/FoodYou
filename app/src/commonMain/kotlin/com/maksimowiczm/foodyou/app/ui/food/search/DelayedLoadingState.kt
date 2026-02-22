@@ -1,6 +1,7 @@
 package com.maksimowiczm.foodyou.app.ui.food.search
 
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import kotlinx.coroutines.FlowPreview

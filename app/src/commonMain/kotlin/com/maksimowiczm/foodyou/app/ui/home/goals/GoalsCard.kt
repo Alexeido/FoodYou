@@ -7,6 +7,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -124,8 +127,11 @@ internal fun GoalsCard(
                 energy = energy,
                 energyGoal = energyGoal,
                 proteinsPercentage = proteinsPercentage,
+                proteinsGrams = proteins,
                 carbsPercentage = carbsPercentage,
+                carbohydratesGrams = carbohydrates,
                 fatsPercentage = fatsPercentage,
+                fatsGrams = fats,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -157,8 +163,11 @@ private fun GoalsCardContent(
     energy: Int,
     energyGoal: Int,
     proteinsPercentage: Float,
+    proteinsGrams: Int,
     carbsPercentage: Float,
+    carbohydratesGrams: Int,
     fatsPercentage: Float,
+    fatsGrams: Int,
     modifier: Modifier = Modifier,
 ) {
     val nutrientsPalette = LocalNutrientsPalette.current
@@ -225,11 +234,13 @@ private fun GoalsCardContent(
             }
         }
 
-        Row(modifier = Modifier.height(64.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             nutrientsOrder.forEach { field ->
                 when (field) {
                     NutrientsOrder.Proteins ->
-                        MacroBar(
+                        MacroBarWithLabel(
+                            shortLabel = stringResource(Res.string.nutriment_proteins_short),
+                            grams = proteinsGrams,
                             progress = proteinsPercentage,
                             containerColor =
                                 nutrientsPalette.proteinsOnSurfaceContainer.copy(alpha = .25f),
@@ -237,7 +248,9 @@ private fun GoalsCardContent(
                         )
 
                     NutrientsOrder.Fats ->
-                        MacroBar(
+                        MacroBarWithLabel(
+                            shortLabel = stringResource(Res.string.nutriment_fats_short),
+                            grams = fatsGrams,
                             progress = fatsPercentage,
                             containerColor =
                                 nutrientsPalette.fatsOnSurfaceContainer.copy(alpha = .25f),
@@ -245,7 +258,9 @@ private fun GoalsCardContent(
                         )
 
                     NutrientsOrder.Carbohydrates ->
-                        MacroBar(
+                        MacroBarWithLabel(
+                            shortLabel = stringResource(Res.string.nutriment_carbohydrates_short),
+                            grams = carbohydratesGrams,
                             progress = carbsPercentage,
                             containerColor =
                                 nutrientsPalette.carbohydratesOnSurfaceContainer.copy(alpha = .25f),
@@ -311,6 +326,44 @@ private fun MacroBar(
                 size = Size(width = size.width, height = size.height * progress - 1.dp.toPx()),
             )
         }
+    }
+}
+
+@Composable
+private fun MacroBarWithLabel(
+    shortLabel: String,
+    grams: Int,
+    progress: Float,
+    containerColor: Color,
+    barColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Box(
+            modifier = Modifier.height(64.dp),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            MacroBar(
+                progress = progress,
+                containerColor = containerColor,
+                barColor = barColor,
+            )
+            Text(
+                text = shortLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(bottom = 2.dp),
+            )
+        }
+        Text(
+            text = "$grams",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+        )
     }
 }
 
@@ -436,6 +489,148 @@ private fun ExpandedCardContent(
 private fun RoundedSquare(color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.size(16.dp).clip(MaterialTheme.shapes.extraSmall)) {
         drawRect(color = color, size = size)
+    }
+}
+
+@Composable
+internal fun GoalsMiniBar(
+    energy: Int,
+    energyGoal: Int,
+    proteins: Int,
+    proteinsGoal: Int,
+    carbohydrates: Int,
+    carbohydratesGoal: Int,
+    fats: Int,
+    fatsGoal: Int,
+    modifier: Modifier = Modifier,
+) {
+    val nutrientsPalette = LocalNutrientsPalette.current
+    val nutrientsOrder = LocalNutrientsOrder.current
+    val energyFormatter = LocalEnergyFormatter.current
+    val colorScheme = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = colorScheme.surfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            MiniMacroColumn(
+                label = energyFormatter.suffix(),
+                value = energyFormatter.formatEnergy(energy, withSuffix = false),
+                goal = energyFormatter.formatEnergy(energyGoal, withSuffix = false),
+                progress = if (energyGoal > 0) (energy.toFloat() / energyGoal).coerceIn(0f, 1f) else 0f,
+                barColor = colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+
+            nutrientsOrder.forEach { field ->
+                when (field) {
+                    NutrientsOrder.Proteins ->
+                        MiniMacroColumn(
+                            label = stringResource(Res.string.nutriment_proteins),
+                            value = "$proteins",
+                            goal = "$proteinsGoal",
+                            progress = if (proteinsGoal > 0) (proteins.toFloat() / proteinsGoal).coerceIn(0f, 1f) else 0f,
+                            barColor = nutrientsPalette.proteinsOnSurfaceContainer,
+                            suffix = stringResource(Res.string.unit_gram_short),
+                            modifier = Modifier.weight(1f),
+                        )
+
+                    NutrientsOrder.Carbohydrates ->
+                        MiniMacroColumn(
+                            label = stringResource(Res.string.nutriment_carbohydrates),
+                            value = "$carbohydrates",
+                            goal = "$carbohydratesGoal",
+                            progress = if (carbohydratesGoal > 0) (carbohydrates.toFloat() / carbohydratesGoal).coerceIn(0f, 1f) else 0f,
+                            barColor = nutrientsPalette.carbohydratesOnSurfaceContainer,
+                            suffix = stringResource(Res.string.unit_gram_short),
+                            modifier = Modifier.weight(1f),
+                        )
+
+                    NutrientsOrder.Fats ->
+                        MiniMacroColumn(
+                            label = stringResource(Res.string.nutriment_fats),
+                            value = "$fats",
+                            goal = "$fatsGoal",
+                            progress = if (fatsGoal > 0) (fats.toFloat() / fatsGoal).coerceIn(0f, 1f) else 0f,
+                            barColor = nutrientsPalette.fatsOnSurfaceContainer,
+                            suffix = stringResource(Res.string.unit_gram_short),
+                            modifier = Modifier.weight(1f),
+                        )
+
+                    NutrientsOrder.Other,
+                    NutrientsOrder.Vitamins,
+                    NutrientsOrder.Minerals -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniMacroColumn(
+    label: String,
+    value: String,
+    goal: String,
+    progress: Float,
+    barColor: Color,
+    modifier: Modifier = Modifier,
+    suffix: String = "",
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+    )
+    val colorScheme = MaterialTheme.colorScheme
+    val typography = MaterialTheme.typography
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = label,
+            style = typography.labelSmall,
+            color = colorScheme.outline,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = buildAnnotatedString {
+                withStyle(
+                    typography.labelMedium
+                        .copy(color = barColor)
+                        .toSpanStyle(),
+                ) {
+                    append(value)
+                }
+                withStyle(
+                    typography.labelSmall
+                        .copy(color = colorScheme.outline)
+                        .toSpanStyle(),
+                ) {
+                    append(" /$goal$suffix")
+                }
+            },
+        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 2.dp,
+                        topEnd = 2.dp,
+                        bottomStart = 2.dp,
+                        bottomEnd = 2.dp,
+                    )
+                ),
+        ) {
+            drawRect(color = barColor.copy(alpha = 0.25f), size = size)
+            drawRect(color = barColor, size = Size(size.width * animatedProgress, size.height))
+        }
     }
 }
 

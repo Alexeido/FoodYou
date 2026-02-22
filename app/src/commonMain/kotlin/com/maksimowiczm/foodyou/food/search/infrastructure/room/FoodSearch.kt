@@ -11,11 +11,13 @@ data class FoodSearch(
     val recipeId: Long?,
     val headline: String,
     val isLiquid: Boolean,
+    val isFavorite: Boolean?,
     @Embedded val nutrients: Nutrients?,
     @Embedded val vitamins: Vitamins?,
     @Embedded val minerals: Minerals?,
     val totalWeight: Double?,
     val servingWeight: Double?,
+    val categories: String?,
     val measurementType: MeasurementType?,
     val measurementValue: Double?,
 )

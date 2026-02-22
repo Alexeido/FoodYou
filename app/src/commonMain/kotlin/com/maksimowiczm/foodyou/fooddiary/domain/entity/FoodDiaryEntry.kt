@@ -25,8 +25,10 @@ data class FoodDiaryEntry(
     override val date: LocalDate,
     val measurement: Measurement,
     val food: DiaryFood,
+    override val isEaten: Boolean = false,
     override val createdAt: LocalDateTime,
     override val updatedAt: LocalDateTime,
+    override val position: Int = 0,
 ) : DiaryEntry {
     override val name: String = food.name
 

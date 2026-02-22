@@ -37,6 +37,15 @@ abstract class ProductDao {
 
     @Query(
         """
+        UPDATE Product
+        SET isFavorite = :isFavorite
+        WHERE id = :id
+        """
+    )
+    abstract suspend fun updateFavorite(id: Long, isFavorite: Boolean)
+
+    @Query(
+        """
         SELECT EXISTS (
             SELECT 1
             FROM Product

@@ -126,6 +126,59 @@ internal class RoomFoodSearchRepository(private val foodSearchDao: FoodSearchDao
                 )
         }
 
+    // Favorites helpers (local-only)
+    override fun favorites(
+        query: SearchQuery,
+        source: FoodSource.Type?,
+        config: PagingConfig,
+        excludedRecipeId: FoodId.Recipe?,
+    ): Flow<PagingData<FoodSearch>> =
+        Pager(
+                config = config,
+                pagingSourceFactory = {
+                    when (query) {
+                        SearchQuery.Blank -> foodSearchDao.observeFavorites(source = source?.toEntity())
+
+                        is SearchQuery.Text ->
+                            foodSearchDao.observeFavoritesByQuery(
+                                query = query.query,
+                                source = source?.toEntity(),
+                                excludedRecipeId = excludedRecipeId?.id,
+                            )
+
+                        is SearchQuery.Barcode ->
+                            foodSearchDao.observeFavoritesByBarcode(
+                                barcode = query.query,
+                                source = source?.toEntity(),
+                            )
+                    }
+                },
+            )
+            .flow
+            .map { data -> data.map { it.toModel() } }
+
+    override fun favoritesCount(
+        query: SearchQuery,
+        source: FoodSource.Type?,
+        excludedRecipeId: FoodId.Recipe?,
+    ): Flow<Int> =
+        when (query) {
+            SearchQuery.Blank -> foodSearchDao.observeFavoritesCount(source = source?.toEntity())
+
+            is SearchQuery.Text ->
+                foodSearchDao.observeFavoritesCountByQuery(
+                    query = query.query,
+                    source = source?.toEntity(),
+                    excludedRecipeId = excludedRecipeId?.id,
+                )
+
+            is SearchQuery.Barcode ->
+                foodSearchDao.observeFavoritesCountByBarcode(
+                    barcode = query.query,
+                    source = source?.toEntity(),
+                )
+        }
+
     override fun searchRecentFoodCount(
         query: SearchQuery,
         now: LocalDateTime,
@@ -160,6 +213,7 @@ private fun RoomFoodSearch.toModel(): FoodSearch =
                 id = foodId,
                 headline = headline,
                 isLiquid = isLiquid,
+                isFavorite = isFavorite ?: false,
                 nutritionFacts =
                     NutritionFacts(
                         proteins = nutrients?.proteins.toNutrientValue(),
@@ -208,6 +262,7 @@ private fun RoomFoodSearch.toModel(): FoodSearch =
                     ),
                 totalWeight = totalWeight,
                 servingWeight = servingWeight,
+                categories = categories?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
                 suggestedMeasurement = suggestedMeasurement,
             )
 

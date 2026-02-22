@@ -33,6 +33,7 @@ class UpdateProductUseCase(
         note: String?,
         source: FoodSource,
         isLiquid: Boolean,
+        categories: List<String>? = null,
     ): Result<Unit, UpdateProductError> {
         if (name.isBlank()) {
             return logger.logAndReturnFailure(
@@ -65,6 +66,7 @@ class UpdateProductUseCase(
                     note = note?.ifBlank { null },
                     source = source,
                     isLiquid = isLiquid,
+                    categories = categories,
                 )
 
             productRepository.updateProduct(updatedProduct)

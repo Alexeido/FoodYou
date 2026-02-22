@@ -32,6 +32,7 @@ internal data class OpenFoodFactsProductV2(
     override val servingWeight: Float? = null,
     @SerialName("serving_quantity_unit") override val servingQuantityUnit: String? = null,
     @SerialName("nutriments") override val nutritionFacts: OpenFoodFactsNutrients? = null,
+    @SerialName("categories_tags") override val categories: List<String>? = null,
 ) : OpenFoodFactsProduct {
     override val url: String? = barcode?.let { "https://world.openfoodfacts.org/product/$it" }
 }

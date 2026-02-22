@@ -21,4 +21,5 @@ data class DiaryProductEntity(
     val sourceType: FoodSourceType,
     val sourceUrl: String?,
     val note: String?,
+    val categories: String? = null,
 )

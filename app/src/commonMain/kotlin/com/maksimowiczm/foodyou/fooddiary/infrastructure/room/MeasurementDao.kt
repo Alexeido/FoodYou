@@ -52,14 +52,57 @@ abstract class MeasurementDao {
 
     @Query(
         """
-        SELECT * 
+        SELECT *
         FROM Measurement
-        WHERE 
-            mealId = :mealId 
-            AND epochDay = :epochDay 
+        WHERE
+            mealId = :mealId
+            AND epochDay = :epochDay
+        ORDER BY position ASC, id ASC
         """
     )
     abstract fun observeMeasurements(mealId: Long, epochDay: Long): Flow<List<MeasurementEntity>>
+
+    @Query(
+        """
+        SELECT COALESCE(MAX(position), -1)
+        FROM Measurement
+        WHERE mealId = :mealId AND epochDay = :epochDay
+        """
+    )
+    abstract suspend fun getMaxPosition(mealId: Long, epochDay: Long): Int
+
+    @Query("UPDATE Measurement SET position = :position WHERE id = :id")
+    abstract suspend fun updatePosition(id: Long, position: Int)
+
+    @Query(
+        """
+        UPDATE Measurement
+        SET position = :position, mealId = :mealId, updatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    abstract suspend fun updatePositionAndMeal(
+        id: Long,
+        mealId: Long,
+        position: Int,
+        updatedAt: Long,
+    )
+
+    @Query(
+        """
+        UPDATE Measurement
+        SET isEaten = :isEaten
+        WHERE id = :id
+        """
+    )
+    protected abstract suspend fun updateMeasurementIsEaten(id: Long, isEaten: Boolean)
+
+    open suspend fun setEaten(id: Long, isEaten: Boolean) {
+        updateMeasurementIsEaten(id, isEaten)
+    }
+
+    @Query("SELECT DISTINCT epochDay FROM Measurement WHERE epochDay BETWEEN :from AND :to")
+    abstract fun observeActiveDays(from: Long, to: Long): Flow<List<Long>>
 
     @Query(
         """

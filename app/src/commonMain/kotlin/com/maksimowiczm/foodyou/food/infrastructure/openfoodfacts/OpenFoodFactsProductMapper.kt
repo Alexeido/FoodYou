@@ -77,6 +77,7 @@ internal class OpenFoodFactsProductMapper {
             servingWeight = servingWeight?.toDouble(),
             source = source,
             isLiquid = isLiquid,
+            categories = product.categories,
         )
     }
 }

@@ -29,9 +29,15 @@ data class MeasurementEntity(
     val recipeId: Long?,
     val measurement: MeasurementType,
     val quantity: Double,
+    
+    /** Whether the entry has been marked as eaten by the user. */
+    val isEaten: Boolean = false,
 
     /** Epoch seconds */
     val createdAt: Long,
     /** Epoch seconds */
     val updatedAt: Long,
+
+    /** User-defined position for ordering within a meal+day. Lower = earlier. */
+    val position: Int = 0,
 )

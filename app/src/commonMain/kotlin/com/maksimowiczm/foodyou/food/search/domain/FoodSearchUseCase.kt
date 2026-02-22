@@ -1,6 +1,7 @@
 package com.maksimowiczm.foodyou.food.search.domain
 
 import androidx.paging.ExperimentalPagingApi
+import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.RemoteMediator
@@ -19,6 +20,7 @@ class FoodSearchUseCase(
     private val foodSearchRepository: FoodSearchRepository,
     private val foodSearchPreferencesRepository: UserPreferencesRepository<FoodSearchPreferences>,
     private val foodRemoteMediatorFactoryAggregate: FoodRemoteMediatorFactoryAggregate,
+    private val openFoodFactsNetworkPagingSourceFactory: OpenFoodFactsNetworkPagingSourceFactory,
     private val eventBus: EventBus,
     private val dateProvider: DateProvider,
 ) {
@@ -26,6 +28,7 @@ class FoodSearchUseCase(
         query: String?,
         source: FoodSource.Type,
         excludedRecipeId: FoodId.Recipe?,
+        useAlternativeDb: Boolean = false,
     ): Flow<PagingData<FoodSearch>> {
         val query = searchQuery(query)
 
@@ -34,14 +37,63 @@ class FoodSearchUseCase(
         }
 
         return foodSearchPreferencesRepository.observe().flatMapLatest { prefs ->
-            foodSearchRepository.search(
-                query = query,
-                source = source,
-                config = PagingConfig(pageSize = PAGE_SIZE),
-                remoteMediatorFactory = prefs.remoteMediatorFactory(source)?.wrap(query),
-                excludedRecipeId = excludedRecipeId,
-            )
+            // For OOF: bypass Room round-trip with direct network PagingSource for both text and
+            // barcode queries. Barcodes use a single-product endpoint (V2); text uses search (V1).
+            if (source == FoodSource.Type.OpenFoodFacts && prefs.openFoodFacts.enabled) {
+                when (query) {
+                    is SearchQuery.Text ->
+                        Pager(
+                            config = PagingConfig(pageSize = PAGE_SIZE),
+                            pagingSourceFactory = {
+                                openFoodFactsNetworkPagingSourceFactory.create(query.query, useAlternativeDb)
+                            },
+                        ).flow
+                    is SearchQuery.Barcode ->
+                        Pager(
+                            config = PagingConfig(pageSize = PAGE_SIZE),
+                            pagingSourceFactory = {
+                                openFoodFactsNetworkPagingSourceFactory.createForBarcode(query.query, useAlternativeDb)
+                            },
+                        ).flow
+                    else ->
+                        foodSearchRepository.search(
+                            query = query,
+                            source = source,
+                            config = PagingConfig(pageSize = PAGE_SIZE),
+                            remoteMediatorFactory = prefs.remoteMediatorFactory(source)?.wrap(query),
+                            excludedRecipeId = excludedRecipeId,
+                        )
+                }
+            } else {
+                foodSearchRepository.search(
+                    query = query,
+                    source = source,
+                    config = PagingConfig(pageSize = PAGE_SIZE),
+                    remoteMediatorFactory = prefs.remoteMediatorFactory(source)?.wrap(query),
+                    excludedRecipeId = excludedRecipeId,
+                )
+            }
         }
+    }
+
+    fun searchFavorites(
+        query: String?,
+        source: FoodSource.Type?,
+        excludedRecipeId: FoodId.Recipe?,
+    ): Flow<PagingData<FoodSearch>> {
+        val query = searchQuery(query)
+
+        if (query is SearchQuery.Text) {
+            eventBus.publish(FoodSearchEvent(query, dateProvider.nowInstant()))
+        }
+
+        // Favorites are local-only; no remote mediator. `source == null` means all sources.
+        return foodSearchRepository.favorites(
+            query = query,
+            source = source,
+            config = PagingConfig(pageSize = PAGE_SIZE),
+            excludedRecipeId = excludedRecipeId,
+        )
     }
 
     fun searchRecent(
@@ -83,6 +135,6 @@ class FoodSearchUseCase(
         }
 
     private companion object {
-        const val PAGE_SIZE = 30
+        const val PAGE_SIZE = 24
     }
 }

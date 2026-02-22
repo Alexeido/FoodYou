@@ -28,13 +28,19 @@ import org.jetbrains.compose.resources.stringResource
 internal fun FoodSearchErrorCard(
     error: RemoteFoodException,
     onRetry: () -> Unit,
+    onAlternativeDb: () -> Unit,
     onUsdaApiKey: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (error) {
         is RemoteFoodException.Unknown,
         is RemoteFoodException.OpenFoodFacts.RateLimit ->
-            FoodSearchErrorCard(message = error.message, onRetry = onRetry, modifier = modifier)
+            FoodSearchErrorCard(
+                message = error.message,
+                onRetry = onRetry,
+                onAlternativeDb = onAlternativeDb,
+                modifier = modifier,
+            )
 
         is RemoteFoodException.ProductNotFoundException -> Unit
 
@@ -56,6 +62,7 @@ internal fun FoodSearchErrorCard(
 private fun FoodSearchErrorCard(
     message: String?,
     onRetry: () -> Unit,
+    onAlternativeDb: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDetails by rememberSaveable { mutableStateOf(false) }
@@ -91,6 +98,16 @@ private fun FoodSearchErrorCard(
                         ),
                 ) {
                     Text(stringResource(Res.string.action_show_details))
+                }
+
+                TextButton(
+                    onClick = { onAlternativeDb() },
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                ) {
+                    Text(stringResource(Res.string.action_alternative_db))
                 }
 
                 FilledTonalButton(

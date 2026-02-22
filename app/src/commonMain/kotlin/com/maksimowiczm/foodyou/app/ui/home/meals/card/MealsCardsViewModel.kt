@@ -7,12 +7,16 @@ import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipe
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryMeal
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntry
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.MealsPreferences
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.ManualDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.usecase.ObserveDiaryMealsUseCase
 import kotlin.math.roundToInt
+import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
+import com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -64,6 +68,48 @@ internal class MealsCardsViewModel(
             }
         }
     }
+
+    fun onToggleEaten(model: MealEntryModel) {
+        viewModelScope.launch {
+            when (model) {
+                is FoodMealEntryModel -> foodEntryRepository.setEaten(model.id, !model.isEaten)
+                is ManualMealEntryModel -> Unit
+            }
+        }
+    }
+
+    /**
+     * Called when the user finishes a drag gesture in the flat vertical meals list.
+     * [assignments] contains the new (entry, mealId, position) triple for every visible entry,
+     * computed from the flat list order after the drag settled.
+     */
+    fun onEntriesReordered(assignments: List<Triple<MealEntryModel, Long, Int>>) {
+        val date = dateState.value ?: return
+        viewModelScope.launch {
+            val foodUpdates = mutableListOf<Pair<FoodDiaryEntryId, Int>>()
+            val manualUpdates = mutableListOf<Pair<ManualDiaryEntryId, Int>>()
+
+            assignments.forEach { (entry, newMealId, position) ->
+                when (entry) {
+                    is FoodMealEntryModel -> {
+                        if (newMealId != entry.mealId) {
+                            foodEntryRepository.moveToMeal(entry.id, newMealId, date)
+                        }
+                        foodUpdates.add(entry.id to position)
+                    }
+                    is ManualMealEntryModel -> {
+                        if (newMealId != entry.mealId) {
+                            manualEntryRepository.moveToMeal(entry.id, newMealId, date)
+                        }
+                        manualUpdates.add(entry.id to position)
+                    }
+                }
+            }
+
+            if (foodUpdates.isNotEmpty()) foodEntryRepository.updatePositions(foodUpdates)
+            if (manualUpdates.isNotEmpty()) manualEntryRepository.updatePositions(manualUpdates)
+        }
+    }
 }
 
 private fun DiaryMeal.toMealModel(): MealModel =
@@ -73,23 +119,32 @@ private fun DiaryMeal.toMealModel(): MealModel =
         from = meal.from,
         to = meal.to,
         isAllDay = meal.from == meal.to,
-        foods = entries.map { it.toMealEntryModel() },
+        foods = entries.map { it.toMealEntryModel(meal.id) },
         energy = nutritionFacts.energy.value?.roundToInt() ?: 0,
         proteins = nutritionFacts.proteins.value ?: 0.0,
         carbohydrates = nutritionFacts.carbohydrates.value ?: 0.0,
         fats = nutritionFacts.fats.value ?: 0.0,
     )
 
-private fun DiaryEntry.toMealEntryModel(): MealEntryModel =
+private fun DiaryEntry.toMealEntryModel(mealId: Long): MealEntryModel =
     when (this) {
         is FoodDiaryEntry ->
             FoodMealEntryModel(
                 id = id,
+                mealId = mealId,
                 name = food.name,
                 energy = nutritionFacts.energy.value?.roundToInt(),
                 proteins = nutritionFacts.proteins.value,
                 carbohydrates = nutritionFacts.carbohydrates.value,
                 fats = nutritionFacts.fats.value,
+                isEaten = isEaten,
+                category = when (food) {
+                    is com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodProduct ->
+                        com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategoryFromTags(food.categories)
+                            .takeIf { it != com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory.UNKNOWN }
+                            ?: com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategory(food.name)
+                    else -> com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategory(food.name)
+                },
                 measurement = measurement,
                 weight = weight,
                 isLiquid = food.isLiquid,
@@ -101,10 +156,13 @@ private fun DiaryEntry.toMealEntryModel(): MealEntryModel =
         is ManualDiaryEntry ->
             ManualMealEntryModel(
                 id = id,
+                mealId = mealId,
                 name = name,
                 energy = nutritionFacts.energy.value?.roundToInt(),
                 proteins = nutritionFacts.proteins.value,
                 carbohydrates = nutritionFacts.carbohydrates.value,
                 fats = nutritionFacts.fats.value,
+                isEaten = isEaten,
+                category = FoodCategory.UNKNOWN,
             )
     }

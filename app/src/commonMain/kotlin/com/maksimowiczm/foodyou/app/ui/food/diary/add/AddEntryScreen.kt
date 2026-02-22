@@ -329,6 +329,18 @@ private fun AddEntryScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Source(food.source)
+                        val _categories = (food as? ProductModel)?.categories
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Categories",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = _categories?.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "N/D",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
                 }
             }

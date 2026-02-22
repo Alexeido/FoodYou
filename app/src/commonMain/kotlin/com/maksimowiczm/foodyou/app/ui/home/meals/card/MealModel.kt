@@ -1,6 +1,7 @@
 package com.maksimowiczm.foodyou.app.ui.home.meals.card
 
 import androidx.compose.runtime.*
+import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntryId
@@ -22,21 +23,27 @@ internal data class MealModel(
 
 @Immutable
 internal sealed interface MealEntryModel {
+    val mealId: Long
     val name: String
     val energy: Int?
     val proteins: Double?
     val carbohydrates: Double?
     val fats: Double?
+    val isEaten: Boolean
+    val category: FoodCategory
 }
 
 @Immutable
 internal data class FoodMealEntryModel(
     val id: FoodDiaryEntryId,
+    override val mealId: Long,
     override val name: String,
     override val energy: Int?,
     override val proteins: Double?,
     override val carbohydrates: Double?,
     override val fats: Double?,
+    override val isEaten: Boolean,
+    override val category: FoodCategory,
     val measurement: Measurement,
     val weight: Double?,
     val isLiquid: Boolean,
@@ -48,9 +55,12 @@ internal data class FoodMealEntryModel(
 @Immutable
 internal data class ManualMealEntryModel(
     val id: ManualDiaryEntryId,
+    override val mealId: Long,
     override val name: String,
     override val energy: Int?,
     override val proteins: Double?,
     override val carbohydrates: Double?,
     override val fats: Double?,
+    override val isEaten: Boolean = true,
+    override val category: FoodCategory = FoodCategory.UNKNOWN,
 ) : MealEntryModel

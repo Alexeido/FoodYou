@@ -26,6 +26,7 @@ internal fun HorizontalMealsCards(
     onQuickAdd: (mealId: Long) -> Unit,
     onEditEntry: (MealEntryModel) -> Unit,
     onDeleteEntry: (MealEntryModel) -> Unit,
+    onToggleEaten: (MealEntryModel) -> Unit,
     onLongClick: (mealId: Long) -> Unit,
     shimmer: Shimmer,
     contentPadding: PaddingValues,
@@ -67,6 +68,7 @@ internal fun HorizontalMealsCards(
                     onQuickAdd = { onQuickAdd(meal.id) },
                     onEditEntry = onEditEntry,
                     onDeleteEntry = onDeleteEntry,
+                    onToggleEaten = onToggleEaten,
                     onLongClick = { onLongClick(meal.id) },
                 )
             } else {

@@ -15,9 +15,11 @@ sealed interface FoodSearch {
         override val id: FoodId.Product,
         override val headline: String,
         override val isLiquid: Boolean,
+        val isFavorite: Boolean = false,
         val nutritionFacts: NutritionFacts,
         val totalWeight: Double?,
         val servingWeight: Double?,
+        val categories: List<String>?,
         override val suggestedMeasurement: Measurement,
     ) : FoodSearch {
         fun weight(measurement: Measurement): Double? =

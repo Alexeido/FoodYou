@@ -312,6 +312,7 @@
 
     <string name="neutral_an_error_occurred">An error occurred</string>
     <string name="action_retry">Retry</string>
+    <string name="action_alternative_db">Alt. DB</string>
     <string name="action_import">Import</string>
     <string name="headline_today" description="Today, date">Today, %1$s</string>
     <string name="headline_yesterday" description="Yesterday, date">Yesterday, %1$s</string>

@@ -12,6 +12,7 @@ internal class StaticChangelog(private val appConfig: AppConfig) : Changelog {
     override val versions: List<Version>
         get() =
             listOf(
+                v_3_9_A,
                 v_3_4_3,
                 v_3_4_2,
                 v_3_4_1,
@@ -48,6 +49,29 @@ internal class StaticChangelog(private val appConfig: AppConfig) : Changelog {
                 v2_1_0,
                 v2_0_0,
             )
+
+    val v_3_9_A =
+        Version(
+            version = "3.9A",
+            date = LocalDate(2026, 2, 22),
+            newFeatures =
+                listOf(
+                    "Drag-and-drop reordering of meal entries.",
+                    "Calendar streak indicator with tiered colors (white 1-6 days, blue 7-13, gold 14+).",
+                    "Daily goal progress dots on the calendar.",
+                    "Compact goals bar now shows nutrient letters (P/G/C) and gram values.",
+                    "Mini goals bar appears when scrolling past the goals card.",
+                    "Category icons for food items.",
+                    "OpenFoodFacts: 'Alt. DB' button to retry failed searches on the alternative server.",
+                    "OpenFoodFacts: Barcode search optimized — results appear immediately without delays.",
+                ),
+            changes =
+                listOf(
+                    "Fork by Alexeido — source code and issue tracker updated to github.com/Alexeido/FoodYou.",
+                    "Meal entries now show only the primary brand name.",
+                    "Improved Spanish translations.",
+                ),
+        )
 
     val v_3_4_3 =
         Version(

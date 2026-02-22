@@ -15,6 +15,7 @@ fun Module.food() {
             foodSearchPreferencesRepository = userPreferencesRepository(),
             searchHistoryRepository = get(),
             foodSearchRepository = get(),
+            productRepository = get(),
             foodSearchUseCase = get(),
             dateProvider = get(),
         )

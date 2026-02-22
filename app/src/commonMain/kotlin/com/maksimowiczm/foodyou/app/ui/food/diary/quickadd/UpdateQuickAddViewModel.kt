@@ -47,7 +47,7 @@ internal class UpdateQuickAddViewModel(
             val updatedEntry =
                 entry.copy(
                     name = name,
-                    nutritionFacts =
+                    rawNutritionFacts =
                         entry.nutritionFacts.copy(
                             energy = energy.toNutrientValue(),
                             proteins = proteins.toNutrientValue(),

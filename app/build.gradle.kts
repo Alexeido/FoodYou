@@ -38,7 +38,7 @@ kotlin {
     }
 
     androidTarget {
-        compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
@@ -84,6 +84,7 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.serialization.kotlinx.json)
+            implementation(libs.ktor.client.encoding)
 
             implementation(libs.androidx.paging.common)
             implementation(libs.androidx.paging.compose)
@@ -164,8 +165,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 

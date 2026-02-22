@@ -11,8 +11,9 @@ fun Module.foodSearchDomainModule() {
                 foodSearchRepository = get(),
                 foodSearchPreferencesRepository = userPreferencesRepository(),
                 foodRemoteMediatorFactoryAggregate = get(),
-                dateProvider = get(),
+                openFoodFactsNetworkPagingSourceFactory = get(),
                 eventBus = get(),
+                dateProvider = get(),
             )
         }
         .bind<FoodSearchUseCase>()

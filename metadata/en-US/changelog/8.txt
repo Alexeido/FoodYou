@@ -15,4 +15,4 @@ Notes
 Why was the Open Food Facts search removed?
 It was removed because it wasn't working as expected. The search often caused confusion among users, as it frequently returned inaccurate or irrelevant results. This led to my decision to remove the in-app search feature altogether and replace it with a manual entry option. This isn't a rant against Open Food Facts, as it's a great and free project. To be fair, the app used the deprecated V1 API, which seems inadequate for a modern app.
 
-**Full Changelog**: https://github.com/maksimowiczm/FoodYou/compare/2.0.0...2.1.0
+**Full Changelog**: https://github.com/Alexeido/FoodYou/compare/2.0.0...2.1.0

@@ -51,6 +51,8 @@ internal class UpdateProductViewModel(
         }
 
         viewModelScope.launch {
+            val categories = form.selectedCategory?.let { cat -> cat.offTags.firstOrNull()?.let { listOf(it) } }
+
             updateProductUseCase
                 .update(
                     id = productId,
@@ -63,6 +65,7 @@ internal class UpdateProductViewModel(
                     note = form.note.value,
                     source = FoodSource(type = form.sourceType, url = form.sourceUrl.value),
                     isLiquid = form.isLiquid,
+                    categories = categories,
                 )
                 .onSuccess { eventBus.send(UpdateProductEvent.Updated) }
                 .onError {

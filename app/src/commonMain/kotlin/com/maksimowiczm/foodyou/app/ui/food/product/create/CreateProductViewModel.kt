@@ -39,6 +39,8 @@ internal class CreateProductViewModel(
         }
 
         viewModelScope.launch {
+            val categories = form.selectedCategory?.let { cat -> cat.offTags.firstOrNull()?.let { listOf(it) } }
+
             createProductUseCase
                 .create(
                     name = form.name.value,
@@ -51,6 +53,7 @@ internal class CreateProductViewModel(
                     source = FoodSource(type = form.sourceType, url = form.sourceUrl.value),
                     nutritionFacts = form.nutritionFacts(multiplier),
                     history = FoodHistory.Created(dateProvider.nowInstant()),
+                    categories = categories,
                 )
                 .onSuccess { eventBus.send(CreateProductEvent.Created(it)) }
                 .onError {

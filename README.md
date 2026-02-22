@@ -1,7 +1,6 @@
-[![F-Droid](https://img.shields.io/f-droid/v/com.maksimowiczm.foodyou?color=b4eb12&label=F-Droid&logo=fdroid&logoColor=1f78d2)](https://f-droid.org/en/packages/com.maksimowiczm.foodyou)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/maksimowiczm/FoodYou?color=black&label=Stable&logo=github)](https://github.com/maksimowiczm/FoodYou/releases/latest/)
-[![GitHub all releases](https://img.shields.io/github/downloads/maksimowiczm/FoodYou/total?label=Downloads&logo=github)](https://github.com/maksimowiczm/FoodYou/releases/)
-[![GitHub Repo stars](https://img.shields.io/github/stars/maksimowiczm/FoodYou?style=flat&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyBoZWlnaHQ9IjI0IiB2aWV3Qm94PSIwIC05NjAgOTYwIDk2MCIgd2lkdGg9IjI0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxwYXRoIGQ9Im0zNTQtMjQ3IDEyNi03NiAxMjYgNzctMzMtMTQ0IDExMS05Ni0xNDYtMTMtNTgtMTM2LTU4IDEzNS0xNDYgMTMgMTExIDk3LTMzIDE0M1pNMjMzLTgwbDY1LTI4MUw4MC01NTBsMjg4LTI1IDExMi0yNjUgMTEyIDI2NSAyODggMjUtMjE4IDE4OSA2NSAyODEtMjQ3LTE0OUwyMzMtODBabTI0Ny0zNTBaIiBzdHlsZT0iZmlsbDogcmdiKDI0NSwgMjI3LCA2Nik7Ii8%2BCjwvc3ZnPg%3D%3D&color=%23f8e444)](https://github.com/maksimowiczm/FoodYou/stargazers)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Alexeido/FoodYou?color=black&label=Stable&logo=github)](https://github.com/Alexeido/FoodYou/releases/latest/)
+[![GitHub all releases](https://img.shields.io/github/downloads/Alexeido/FoodYou/total?label=Downloads&logo=github)](https://github.com/Alexeido/FoodYou/releases/)
+[![GitHub Repo stars](https://img.shields.io/github/stars/Alexeido/FoodYou?style=flat&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyBoZWlnaHQ9IjI0IiB2aWV3Qm94PSIwIC05NjAgOTYwIDk2MCIgd2lkdGg9IjI0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxwYXRoIGQ9Im0zNTQtMjQ3IDEyNi03NiAxMjYgNzctMzMtMTQ0IDExMS05Ni0xNDYtMTMtNTgtMTM2LTU4IDEzNS0xNDYgMTMgMTExIDk3LTMzIDE0M1pNMjMzLTgwbDY1LTI4MUw4MC01NTBsMjg4LTI1IDExMi0yNjUgMTEyIDI2NSAyODggMjUtMjE4IDE4OSA2NSAyODEtMjQ3LTE0OUwyMzMtODBabTI0Ny0zNTBaIiBzdHlsZT0iZmlsbDogcmdiKDI0NSwgMjI3LCA2Nik7Ii8%2BCjwvc3ZnPg%3D%3D&color=%23f8e444)](https://github.com/Alexeido/FoodYou/stargazers)
 
 <div align="center">
     <img src="./metadata/en-US/images/featureGraphic.png" alt="Feature Graphic" />
@@ -9,10 +8,11 @@
 
 <div align="center">
 
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="75">](https://f-droid.org/packages/com.maksimowiczm.foodyou)
-[<img src="https://s1.ax1x.com/2023/01/12/pSu1a36.png" alt="Download from GitHub" height="75">](https://github.com/maksimowiczm/FoodYou/releases)
+[<img src="https://s1.ax1x.com/2023/01/12/pSu1a36.png" alt="Download from GitHub" height="75">](https://github.com/Alexeido/FoodYou/releases)
 
 </div>
+
+> **Fork notice:** This is a personal fork of [Food You](https://github.com/maksimowiczm/FoodYou) by [Mateusz Maksimowicz](https://github.com/maksimowiczm), maintained by [Alexeido](https://github.com/Alexeido). It includes additional features and customizations on top of the original project.
 
 **Food You** is a free, open-source, and privacy-focused food diary and nutrition tracker built
 using [Material Design](https://m3.material.io/) principles.
@@ -47,32 +47,17 @@ Want to help make Food You even better? Here are some great ways to contribute:
 - 🌍 **Translate the App** – Help improve international accessibility
   via [Crowdin](https://crowdin.com/project/food-you). Let me know if you'd like to credited
 - 💡 **Request a Feature** – Got an idea? Open
-  a [GitHub issue](https://github.com/maksimowiczm/FoodYou/issues) to suggest a new feature or
+  a [GitHub issue](https://github.com/Alexeido/FoodYou/issues) to suggest a new feature or
   improvement
 - 🐞 **Report Bugs** – Found a bug? Submit it
-  via [GitHub issue](https://github.com/maksimowiczm/FoodYou/issues) so it can be fixed
+  via [GitHub issue](https://github.com/Alexeido/FoodYou/issues) so it can be fixed
 - ⭐ **Star the Repository** – If you like the project, give it a star
-
-**Important Note:** I am currently not accepting any code contributions due to licensing and the
-fact that this app generates some income.
-
-## ❤️ Sponsor
-
-This app is free, open-source, and ad-free. You directly support full-time development of the
-project.
-
-- [Support on Ko-fi](https://ko-fi.com/maksimowiczm)
-- **BTC**: `bc1qml4g4jwt6mqq2tsk9u7udhwysmjfknx68taln2`
-- **ETH**: `0x7C794aF78235504014cC5c987161b80a803ee514`
-- **Monero**:
-  `41eXqs6zg8PFQ8Fec3iyYcVA3rFHc7wgj9hLRuiVh2FtbE2q2TGoCbhSmVX5R76SmYPpSM2VR7qmD4SQ4YMZCEFK6DGGWfB`
 
 ## ✉️ Contact
 
-Have questions, feedback, or want to collaborate? Reach out!
+Have questions or feedback about this fork? Open an issue on GitHub!
 
-- **Email**: [maksimowicz.dev@gmail.com](mailto:maksimowicz.dev@gmail.com?subject=Food%20You)
-- **Discord**: https://discord.gg/MuF6VZjufn
+- **GitHub Issues**: [github.com/Alexeido/FoodYou/issues](https://github.com/Alexeido/FoodYou/issues)
 
 ## 🔄 Similar Open-Source Apps
 
@@ -85,14 +70,15 @@ Looking for alternatives or similar tools?
 
 ## 💡 Credits
 
-- [ReadYou](https://github.com/Ashinch/ReadYou) — I shamelessly borrowed inspiration from this
-  project 🙃
+- [Mateusz Maksimowicz](https://github.com/maksimowiczm) — original author of Food You
+- [ReadYou](https://github.com/Ashinch/ReadYou) — UI inspiration
 - [Icons8](https://icons8.com) — sushi icon 🍣
 
 ## 📜 License
 
 ```
 Copyright (C) 2024-2025 Mateusz Maksimowicz
+Copyright (C) 2025-2026 Alexeido (fork maintainer)
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

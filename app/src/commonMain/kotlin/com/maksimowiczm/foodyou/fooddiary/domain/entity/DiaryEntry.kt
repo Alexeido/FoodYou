@@ -9,6 +9,8 @@ sealed interface DiaryEntry {
     val date: LocalDate
     val name: String
     val nutritionFacts: NutritionFacts
+    val isEaten: Boolean
     val createdAt: LocalDateTime
     val updatedAt: LocalDateTime
+    val position: Int
 }

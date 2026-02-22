@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -37,6 +38,7 @@ internal class FoodSearchViewModel(
     private val foodSearchPreferencesRepository: UserPreferencesRepository<FoodSearchPreferences>,
     searchHistoryRepository: FoodSearchHistoryRepository,
     private val foodSearchRepository: FoodSearchRepository,
+    private val productRepository: com.maksimowiczm.foodyou.food.domain.repository.ProductRepository,
     private val foodSearchUseCase: FoodSearchUseCase,
     private val dateProvider: DateProvider,
 ) : ViewModel() {
@@ -45,14 +47,33 @@ internal class FoodSearchViewModel(
     private val searchQuery =
         MutableSharedFlow<String?>(replay = 1).apply { runBlocking { emit(null) } }
 
+    // Debounced query for network-backed sources (OOF, USDA) to avoid wasting the 10 req/min limit
+    private val debouncedSearchQuery = searchQuery.debounce(300L)
+
+    // For OOF specifically: barcodes (all-digit queries) skip debounce — they arrive complete from scanner
+    private val openFoodFactsSearchQuery = searchQuery.debounce { query ->
+        if (query != null && query.all(Char::isDigit)) 0L else 300L
+    }
+
     private val filter = MutableStateFlow(FoodFilter())
 
+    private val _useAlternativeDb = MutableStateFlow(false)
+
+    fun searchOnAlternativeDb() {
+        _useAlternativeDb.value = true
+    }
+
     fun search(query: String?) {
+        _useAlternativeDb.value = false
         viewModelScope.launch { searchQuery.emit(query) }
     }
 
     fun changeSource(source: FoodFilter.Source) {
         filter.update { it.copy(source = source) }
+    }
+
+    fun setFavoritesOnly(enabled: Boolean) {
+        filter.update { it.copy(favorites = enabled) }
     }
 
     private val foodPreferences =
@@ -65,17 +86,31 @@ internal class FoodSearchViewModel(
             )
 
     private val recentFoodPages =
-        searchQuery.flatMapLatest { query ->
-            foodSearchUseCase.searchRecent(query, excludedRecipeId).cachedIn(viewModelScope)
-        }
+        combine(searchQuery, filter) { q, f -> Pair(q, f) }
+            .flatMapLatest { (query, currentFilter) ->
+                if (currentFilter.favorites) {
+                    foodSearchUseCase.searchFavorites(query, null, excludedRecipeId)
+                } else {
+                    foodSearchUseCase.searchRecent(query, excludedRecipeId)
+                }
+            }.cachedIn(viewModelScope)
     private val recentFoodState =
-        searchQuery
-            .flatMapLatest { query ->
-                foodSearchRepository.searchRecentFoodCount(
-                    query = searchQuery(query),
-                    now = dateProvider.now(),
-                    excludedRecipeId = excludedRecipeId,
-                )
+        combine(searchQuery, filter) { q, f -> Pair(q, f) }
+            .flatMapLatest { (query, currentFilter) ->
+                val q2 = searchQuery(query)
+                if (currentFilter.favorites) {
+                    foodSearchRepository.favoritesCount(
+                        query = q2,
+                        source = null,
+                        excludedRecipeId = excludedRecipeId,
+                    )
+                } else {
+                    foodSearchRepository.searchRecentFoodCount(
+                        query = q2,
+                        now = dateProvider.now(),
+                        excludedRecipeId = excludedRecipeId,
+                    )
+                }
             }
             .map { count ->
                 FoodSourceUiState(
@@ -98,7 +133,23 @@ internal class FoodSearchViewModel(
         }
 
     private val openFoodFactsPages =
-        observeFoodPages(FoodSource.Type.OpenFoodFacts).cachedIn(viewModelScope)
+        combine(
+            openFoodFactsSearchQuery,
+            filter,
+            _useAlternativeDb,
+        ) { query, currentFilter, useAlt -> Triple(query, currentFilter, useAlt) }
+            .flatMapLatest { (query, currentFilter, useAlt) ->
+                if (currentFilter.favorites) {
+                    foodSearchUseCase.searchFavorites(query, null, excludedRecipeId)
+                } else {
+                    foodSearchUseCase.search(
+                        query,
+                        FoodSource.Type.OpenFoodFacts,
+                        excludedRecipeId,
+                        useAlt,
+                    )
+                }
+            }.cachedIn(viewModelScope)
     private val openFoodFactsState =
         combine(observeFoodCount(FoodSource.Type.OpenFoodFacts), foodPreferences) { count, prefs ->
             FoodSourceUiState(
@@ -108,7 +159,7 @@ internal class FoodSearchViewModel(
             )
         }
 
-    private val usdaPages = observeFoodPages(FoodSource.Type.USDA).cachedIn(viewModelScope)
+    private val usdaPages = observeFoodPages(FoodSource.Type.USDA, debounced = true).cachedIn(viewModelScope)
     private val usdaState =
         combine(observeFoodCount(FoodSource.Type.USDA), foodPreferences) { count, prefs ->
             FoodSourceUiState(
@@ -130,18 +181,39 @@ internal class FoodSearchViewModel(
         }
 
     private fun observeFoodCount(source: FoodSource.Type) =
-        searchQuery.flatMapLatest { query ->
-            foodSearchRepository.searchFoodCount(
-                query = searchQuery(query),
-                source = source,
-                excludedRecipeId = excludedRecipeId,
-            )
-        }
+        combine(searchQuery, filter) { query, currentFilter -> Pair(query, currentFilter) }
+            .flatMapLatest { (query, currentFilter) ->
+                val q = searchQuery(query)
 
-    private fun observeFoodPages(source: FoodSource.Type) =
-        searchQuery.flatMapLatest { query ->
-            foodSearchUseCase.search(query, source, excludedRecipeId)
-        }
+                if (currentFilter.favorites) {
+                    // Use source-specific count so disabled sources (USDA, Swiss) stay hidden
+                    foodSearchRepository.favoritesCount(
+                        query = q,
+                        source = source,
+                        excludedRecipeId = excludedRecipeId,
+                    )
+                } else {
+                    foodSearchRepository.searchFoodCount(
+                        query = q,
+                        source = source,
+                        excludedRecipeId = excludedRecipeId,
+                    )
+                }
+            }
+
+    private fun observeFoodPages(source: FoodSource.Type, debounced: Boolean = false) =
+        combine(
+            if (debounced) debouncedSearchQuery else searchQuery,
+            filter,
+        ) { query, currentFilter -> Pair(query, currentFilter) }
+            .flatMapLatest { (query, currentFilter) ->
+                if (currentFilter.favorites) {
+                    // Show favorites across all sources when favorites mode is enabled
+                    foodSearchUseCase.searchFavorites(query, null, excludedRecipeId)
+                } else {
+                    foodSearchUseCase.search(query, source, excludedRecipeId)
+                }
+            }
 
     private val searchHistory =
         searchHistoryRepository
@@ -153,7 +225,8 @@ internal class FoodSearchViewModel(
                 initialValue = emptyList(),
             )
 
-    val uiState =
+    // Build base ui state (without favoritesCount) then combine with favorites count flow
+    private val baseUiState =
         combine(
                 recentFoodState,
                 yourFoodState,
@@ -181,8 +254,29 @@ internal class FoodSearchViewModel(
                         ),
                     filter = filter,
                     recentSearches = searchHistory.map { it.query },
+                    favoritesCount = 0,
                 )
             }
+
+    private val favoritesCountFlow =
+        searchQuery.flatMapLatest { q ->
+            val q2 = searchQuery(q)
+            // Aggregate favorites across all sources
+            foodSearchRepository.favoritesCount(q2, source = null, excludedRecipeId = excludedRecipeId)
+        }
+
+    val uiState =
+        combine(baseUiState, favoritesCountFlow) { base, favCount -> base.copy(favoritesCount = favCount) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(2_000),
+                initialValue = FoodSearchUiState(
+                    sources = emptyMap(),
+                    filter = FoodFilter(),
+                    recentSearches = emptyList(),
+                    favoritesCount = 0,
+                ),
+            )
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(2_000),
@@ -195,6 +289,44 @@ internal class FoodSearchViewModel(
             )
 
     init {
+        // React to filter changes (e.g., toggling favorites while in Recent)
+        viewModelScope.launch {
+            filter.collect { currentFilter ->
+                val ui = uiState.value
+
+                if ((currentFilter.source != FoodFilter.Source.Recent &&
+                        currentFilter.source != FoodFilter.Source.YourFood) ||
+                    ui.currentSourceCount.positive()
+                ) {
+                    return@collect
+                }
+
+                val recentCount = ui.sources[FoodFilter.Source.Recent]?.count
+                if (recentCount.positive()) {
+                    changeSource(FoodFilter.Source.Recent)
+                    return@collect
+                }
+
+                val yourFoodCount = ui.sources[FoodFilter.Source.YourFood]?.count
+                if (yourFoodCount.positive()) {
+                    changeSource(FoodFilter.Source.YourFood)
+                    return@collect
+                }
+
+                val openFoodFactsCount = ui.sources[FoodFilter.Source.OpenFoodFacts]?.count
+                if (openFoodFactsCount.positive()) {
+                    changeSource(FoodFilter.Source.OpenFoodFacts)
+                    return@collect
+                }
+
+                val usdaCount = ui.sources[FoodFilter.Source.USDA]?.count
+                if (usdaCount.positive()) {
+                    changeSource(FoodFilter.Source.USDA)
+                    return@collect
+                }
+            }
+        }
+
         searchQuery
             .flatMapLatest { query ->
                 if (query == null) {
@@ -242,6 +374,10 @@ internal class FoodSearchViewModel(
                 switchFlow.takeWhile { Clock.System.now().toEpochMilliseconds() < deadline }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun toggleFavorite(productId: FoodId.Product, newState: Boolean) {
+        viewModelScope.launch { productRepository.updateFavorite(productId, newState) }
     }
 }
 

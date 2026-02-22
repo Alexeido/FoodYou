@@ -1,7 +1,9 @@
 package com.maksimowiczm.foodyou.food.infrastructure.openfoodfacts
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -16,6 +18,12 @@ internal fun Module.openFoodFactsModule() {
             HttpClient {
                 install(HttpTimeout)
                 install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+                install(ContentEncoding) { gzip() }
+                install(HttpRequestRetry) {
+                    retryOnServerErrors(maxRetries = 1)
+                    retryOnException(maxRetries = 1, retryOnTimeout = true)
+                    exponentialDelay()
+                }
             }
         }
         .onClose { it?.close() }
