@@ -37,4 +37,7 @@ data class MeasurementEntity(
     val createdAt: Long,
     /** Epoch seconds */
     val updatedAt: Long,
+
+    /** User-defined position for ordering within a meal+day. Lower = earlier. */
+    val position: Int = 0,
 )

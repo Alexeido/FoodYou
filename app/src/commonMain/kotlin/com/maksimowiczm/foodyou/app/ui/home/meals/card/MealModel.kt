@@ -23,6 +23,7 @@ internal data class MealModel(
 
 @Immutable
 internal sealed interface MealEntryModel {
+    val mealId: Long
     val name: String
     val energy: Int?
     val proteins: Double?
@@ -35,6 +36,7 @@ internal sealed interface MealEntryModel {
 @Immutable
 internal data class FoodMealEntryModel(
     val id: FoodDiaryEntryId,
+    override val mealId: Long,
     override val name: String,
     override val energy: Int?,
     override val proteins: Double?,
@@ -53,6 +55,7 @@ internal data class FoodMealEntryModel(
 @Immutable
 internal data class ManualMealEntryModel(
     val id: ManualDiaryEntryId,
+    override val mealId: Long,
     override val name: String,
     override val energy: Int?,
     override val proteins: Double?,

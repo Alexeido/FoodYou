@@ -16,6 +16,7 @@ import com.maksimowiczm.foodyou.app.infrastructure.room.migration.foodYou3Migrat
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.unlinkDiaryMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addDiaryProductCategoriesMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addEntryPositionMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductFavoriteMigration
 import com.maksimowiczm.foodyou.common.domain.database.TransactionProvider
 import com.maksimowiczm.foodyou.common.domain.database.TransactionScope as DomainTransactionScope
@@ -142,7 +143,7 @@ abstract class FoodYouDatabase :
         }
 
     companion object {
-        const val VERSION = 35
+        const val VERSION = 36
 
         private val migrations: List<Migration> =
             listOf(
@@ -163,6 +164,7 @@ abstract class FoodYouDatabase :
                 addProductCategoriesMigration,
                 addProductFavoriteMigration,
                 addDiaryProductCategoriesMigration,
+                addEntryPositionMigration,
             )
 
         fun Builder<FoodYouDatabase>.buildDatabase(

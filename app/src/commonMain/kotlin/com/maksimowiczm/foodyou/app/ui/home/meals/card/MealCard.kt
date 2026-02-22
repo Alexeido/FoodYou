@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,13 +49,17 @@ import androidx.compose.ui.unit.dp
 import com.maksimowiczm.foodyou.app.ui.common.theme.LocalNutrientsPalette
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalEnergyFormatter
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalNutrientsOrder
+import androidx.compose.material3.Surface
+import com.maksimowiczm.foodyou.app.ui.common.extension.hapticDraggableHandle
 import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCard
+import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCardDefaults
 import com.maksimowiczm.foodyou.common.compose.utility.LocalDateFormatter
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
 import foodyou.app.generated.resources.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import sh.calvin.reorderable.ReorderableCollectionItemScope
 
 @Composable
 internal fun MealCard(
@@ -414,5 +419,213 @@ private fun DeleteDialog(onDismissRequest: () -> Unit, onDeleteEntry: () -> Unit
         },
         title = { Text(stringResource(Res.string.action_delete_entry)) },
         text = { Text(stringResource(Res.string.description_delete_product_entry)) },
+    )
+}
+
+// ──────────────────────────────────────────────────────────
+// Flat-list composables used by VerticalMealsCards drag layout
+// ──────────────────────────────────────────────────────────
+
+@Composable
+internal fun MealCardHeaderSection(
+    meal: MealModel,
+    onAddFood: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val dateFormatter = LocalDateFormatter.current
+    val enDash = stringResource(Res.string.en_dash)
+    val allDayString = stringResource(Res.string.headline_all_day)
+
+    val timeString =
+        remember(dateFormatter, meal, enDash, allDayString) {
+            if (meal.isAllDay) {
+                allDayString
+            } else {
+                buildString {
+                    append(dateFormatter.formatTime(meal.from))
+                    append(" $enDash ")
+                    append(dateFormatter.formatTime(meal.to))
+                }
+            }
+        }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = FoodYouHomeCardDefaults.color,
+        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .combinedClickable(onLongClick = onLongClick, onClick = onAddFood)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+        ) {
+            Text(
+                text = meal.name,
+                style = MaterialTheme.typography.headlineMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = timeString,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun MealCardFooterSection(
+    meal: MealModel,
+    onAddFood: () -> Unit,
+    onQuickAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val nutrientsPalette = LocalNutrientsPalette.current
+    val nutrientsOrder = LocalNutrientsOrder.current
+    val energyFormatter = LocalEnergyFormatter.current
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = FoodYouHomeCardDefaults.color,
+        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+    ) {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                ValueColumn(
+                    label = energyFormatter.suffix(),
+                    value = energyFormatter.formatEnergy(meal.energy, withSuffix = false),
+                    suffix = null,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                nutrientsOrder.forEach { field ->
+                    when (field) {
+                        NutrientsOrder.Proteins ->
+                            ValueColumn(
+                                label = stringResource(Res.string.nutriment_proteins_short),
+                                value = meal.proteins.formatClipZeros("%.1f"),
+                                suffix = stringResource(Res.string.unit_gram_short),
+                                color = nutrientsPalette.proteinsOnSurfaceContainer,
+                            )
+
+                        NutrientsOrder.Carbohydrates ->
+                            ValueColumn(
+                                label =
+                                    stringResource(Res.string.nutriment_carbohydrates_short),
+                                value = meal.carbohydrates.formatClipZeros("%.1f"),
+                                suffix = stringResource(Res.string.unit_gram_short),
+                                color = nutrientsPalette.carbohydratesOnSurfaceContainer,
+                            )
+
+                        NutrientsOrder.Fats ->
+                            ValueColumn(
+                                label = stringResource(Res.string.nutriment_fats_short),
+                                value = meal.fats.formatClipZeros("%.1f"),
+                                suffix = stringResource(Res.string.unit_gram_short),
+                                color = nutrientsPalette.fatsOnSurfaceContainer,
+                            )
+
+                        NutrientsOrder.Other,
+                        NutrientsOrder.Vitamins,
+                        NutrientsOrder.Minerals -> Unit
+                    }
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            FilledTonalIconButton(
+                onClick = onQuickAdd,
+                shapes =
+                    IconButtonDefaults.shapes(
+                        MaterialTheme.shapes.medium,
+                        MaterialTheme.shapes.extraSmall,
+                    ),
+            ) {
+                Icon(imageVector = Icons.Outlined.Bolt, contentDescription = null)
+            }
+            FilledIconButton(
+                onClick = onAddFood,
+                shapes =
+                    IconButtonDefaults.shapes(
+                        MaterialTheme.shapes.medium,
+                        MaterialTheme.shapes.extraSmall,
+                    ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = stringResource(Res.string.action_add),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+context(scope: ReorderableCollectionItemScope)
+internal fun MealCardEntrySection(
+    entry: MealEntryModel,
+    isFirstInGroup: Boolean,
+    isLastInGroup: Boolean,
+    isDragging: Boolean,
+    onEditEntry: (MealEntryModel) -> Unit,
+    onDeleteEntry: (MealEntryModel) -> Unit,
+    onToggleEaten: (MealEntryModel) -> Unit,
+    onDragStopped: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val topRadius = if (isFirstInGroup) 12.dp else 0.dp
+    val bottomRadius = if (isLastInGroup) 12.dp else 0.dp
+    val shape = RoundedCornerShape(topRadius, topRadius, bottomRadius, bottomRadius)
+
+    var showBottomSheet by rememberSaveable { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    if (showBottomSheet) {
+        val sheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false },
+            sheetState = sheetState,
+        ) {
+            BottomSheetContent(
+                entry = entry,
+                onEdit = {
+                    coroutineScope.launch {
+                        onEditEntry(entry)
+                        sheetState.hide()
+                        showBottomSheet = false
+                    }
+                },
+                onDelete = {
+                    coroutineScope.launch {
+                        sheetState.hide()
+                        onDeleteEntry(entry)
+                        showBottomSheet = false
+                    }
+                },
+            )
+        }
+    }
+
+    MealFoodListItem(
+        entry = entry,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = shape,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable { showBottomSheet = true }
+                .hapticDraggableHandle(onDragStopped = onDragStopped),
+        onToggleEaten = onToggleEaten,
     )
 }

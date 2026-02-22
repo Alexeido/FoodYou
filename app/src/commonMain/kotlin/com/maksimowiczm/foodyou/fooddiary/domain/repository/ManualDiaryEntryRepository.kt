@@ -23,4 +23,8 @@ interface ManualDiaryEntryRepository {
     suspend fun update(entry: ManualDiaryEntry)
 
     suspend fun delete(id: ManualDiaryEntryId)
+
+    suspend fun updatePositions(updates: List<Pair<ManualDiaryEntryId, Int>>)
+
+    suspend fun moveToMeal(id: ManualDiaryEntryId, targetMealId: Long, date: LocalDate)
 }

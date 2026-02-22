@@ -32,4 +32,7 @@ data class ManualDiaryEntryEntity(
     @Embedded val minerals: Minerals,
     val createdEpochSeconds: Long,
     val updatedEpochSeconds: Long,
+
+    /** User-defined position for ordering within a meal+day. Lower = earlier. */
+    val position: Int = 0,
 )

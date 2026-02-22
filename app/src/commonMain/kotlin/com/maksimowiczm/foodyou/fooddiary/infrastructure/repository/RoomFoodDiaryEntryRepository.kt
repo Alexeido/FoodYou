@@ -24,6 +24,7 @@ import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryRecipeEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryRecipeIngredientEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.MeasurementDao
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.MeasurementEntity
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
@@ -61,6 +62,7 @@ internal class RoomFoodDiaryEntryRepository(
                     isEaten = entity.isEaten,
                     createdAt = createdAt,
                     updatedAt = updatedAt,
+                    position = entity.position,
                 )
             }
         }
@@ -93,6 +95,7 @@ internal class RoomFoodDiaryEntryRepository(
                                     isEaten = entity.isEaten,
                                 createdAt = createdAt,
                                 updatedAt = updatedAt,
+                                position = entity.position,
                             )
                         }
                     }
@@ -128,18 +131,21 @@ internal class RoomFoodDiaryEntryRepository(
                 error("Diary entry must have either a product or a recipe")
             }
 
-            val createdAt = createdAt.toInstant(TimeZone.currentSystemDefault()).epochSeconds
+            val createdAtSeconds = createdAt.toInstant(TimeZone.currentSystemDefault()).epochSeconds
+            val epochDay = date.toEpochDays()
+            val position = dao.getMaxPosition(mealId, epochDay) + 1
 
             val entity =
                 MeasurementEntity(
                     mealId = mealId,
-                    epochDay = date.toEpochDays(),
+                    epochDay = epochDay,
                     productId = productId,
                     recipeId = recipeId,
                     measurement = measurement.type,
                     quantity = measurement.rawValue,
-                    createdAt = createdAt,
-                    updatedAt = createdAt,
+                    createdAt = createdAtSeconds,
+                    updatedAt = createdAtSeconds,
+                    position = position,
                 )
 
             dao.insertMeasurement(entity).toFoodDiaryEntryId()
@@ -199,6 +205,19 @@ internal class RoomFoodDiaryEntryRepository(
 
     override suspend fun setEaten(id: FoodDiaryEntryId, isEaten: Boolean) =
         dao.setEaten(id.value, isEaten)
+
+    override suspend fun updatePositions(updates: List<Pair<FoodDiaryEntryId, Int>>) =
+        database.immediateTransaction {
+            updates.forEach { (id, position) -> dao.updatePosition(id.value, position) }
+        }
+
+    override suspend fun moveToMeal(id: FoodDiaryEntryId, targetMealId: Long, date: LocalDate) =
+        database.immediateTransaction {
+            val epochDay = date.toEpochDays()
+            val newPosition = dao.getMaxPosition(targetMealId, epochDay) + 1
+            val now = Clock.System.now().epochSeconds
+            dao.updatePositionAndMeal(id.value, targetMealId, newPosition, now)
+        }
 
     private fun observeFood(measurementEntity: MeasurementEntity): Flow<DiaryFood> =
         measurementEntity.productId?.let { productId -> observeProduct(productId) }

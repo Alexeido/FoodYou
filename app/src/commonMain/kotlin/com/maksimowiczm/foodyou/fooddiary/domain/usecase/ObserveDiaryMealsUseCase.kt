@@ -50,7 +50,9 @@ class ObserveDiaryMealsUseCase(
                             manualEntryRepository.observeAll(mealId = meal.id, date = date),
                             foodEntryRepository.observeAll(mealId = meal.id, date = date),
                         ) { manualEntries, foodEntries ->
-                            (manualEntries + foodEntries).sortedBy { it.name }
+                            (manualEntries + foodEntries).sortedWith(
+                                compareBy({ it.position }, { it.name })
+                            )
                         }
                     }
 

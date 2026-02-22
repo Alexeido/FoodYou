@@ -52,14 +52,41 @@ abstract class MeasurementDao {
 
     @Query(
         """
-        SELECT * 
+        SELECT *
         FROM Measurement
-        WHERE 
-            mealId = :mealId 
-            AND epochDay = :epochDay 
+        WHERE
+            mealId = :mealId
+            AND epochDay = :epochDay
+        ORDER BY position ASC, id ASC
         """
     )
     abstract fun observeMeasurements(mealId: Long, epochDay: Long): Flow<List<MeasurementEntity>>
+
+    @Query(
+        """
+        SELECT COALESCE(MAX(position), -1)
+        FROM Measurement
+        WHERE mealId = :mealId AND epochDay = :epochDay
+        """
+    )
+    abstract suspend fun getMaxPosition(mealId: Long, epochDay: Long): Int
+
+    @Query("UPDATE Measurement SET position = :position WHERE id = :id")
+    abstract suspend fun updatePosition(id: Long, position: Int)
+
+    @Query(
+        """
+        UPDATE Measurement
+        SET position = :position, mealId = :mealId, updatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    abstract suspend fun updatePositionAndMeal(
+        id: Long,
+        mealId: Long,
+        position: Int,
+        updatedAt: Long,
+    )
 
     @Query(
         """

@@ -12,4 +12,5 @@ sealed interface DiaryEntry {
     val isEaten: Boolean
     val createdAt: LocalDateTime
     val updatedAt: LocalDateTime
+    val position: Int
 }
