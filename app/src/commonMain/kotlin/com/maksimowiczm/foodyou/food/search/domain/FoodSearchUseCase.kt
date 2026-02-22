@@ -28,6 +28,7 @@ class FoodSearchUseCase(
         query: String?,
         source: FoodSource.Type,
         excludedRecipeId: FoodId.Recipe?,
+        useAlternativeDb: Boolean = false,
     ): Flow<PagingData<FoodSearch>> {
         val query = searchQuery(query)
 
@@ -36,17 +37,33 @@ class FoodSearchUseCase(
         }
 
         return foodSearchPreferencesRepository.observe().flatMapLatest { prefs ->
-            // For OOF text search: bypass Room round-trip with a direct network PagingSource.
-            // Barcode queries still use RemoteMediator (special single-product fetch).
-            if (source == FoodSource.Type.OpenFoodFacts
-                && prefs.openFoodFacts.enabled
-                && query is SearchQuery.Text) {
-                Pager(
-                    config = PagingConfig(pageSize = PAGE_SIZE),
-                    pagingSourceFactory = {
-                        openFoodFactsNetworkPagingSourceFactory.create(query.query)
-                    },
-                ).flow
+            // For OOF: bypass Room round-trip with direct network PagingSource for both text and
+            // barcode queries. Barcodes use a single-product endpoint (V2); text uses search (V1).
+            if (source == FoodSource.Type.OpenFoodFacts && prefs.openFoodFacts.enabled) {
+                when (query) {
+                    is SearchQuery.Text ->
+                        Pager(
+                            config = PagingConfig(pageSize = PAGE_SIZE),
+                            pagingSourceFactory = {
+                                openFoodFactsNetworkPagingSourceFactory.create(query.query, useAlternativeDb)
+                            },
+                        ).flow
+                    is SearchQuery.Barcode ->
+                        Pager(
+                            config = PagingConfig(pageSize = PAGE_SIZE),
+                            pagingSourceFactory = {
+                                openFoodFactsNetworkPagingSourceFactory.createForBarcode(query.query, useAlternativeDb)
+                            },
+                        ).flow
+                    else ->
+                        foodSearchRepository.search(
+                            query = query,
+                            source = source,
+                            config = PagingConfig(pageSize = PAGE_SIZE),
+                            remoteMediatorFactory = prefs.remoteMediatorFactory(source)?.wrap(query),
+                            excludedRecipeId = excludedRecipeId,
+                        )
+                }
             } else {
                 foodSearchRepository.search(
                     query = query,

@@ -2,6 +2,7 @@ package com.maksimowiczm.foodyou.app.ui.home.calendar
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -56,11 +59,15 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun CalendarCard(homeState: HomeState, modifier: Modifier = Modifier) {
     val dateProvider = koinInject<DateProvider>()
     val today = dateProvider.observeDate().collectAsStateWithLifecycle(LocalDate.now()).value
+
+    val calendarViewModel: CalendarViewModel = koinViewModel()
+    val dayStatuses by calendarViewModel.dayStatuses.collectAsStateWithLifecycle()
 
     val dateFormatter = LocalDateFormatter.current
 
@@ -79,12 +86,13 @@ internal fun CalendarCard(homeState: HomeState, modifier: Modifier = Modifier) {
         }
     }
 
-    CalendarCard(calendarState = calendarState, modifier = modifier)
+    CalendarCard(calendarState = calendarState, dayStatuses = dayStatuses, modifier = modifier)
 }
 
 @Composable
 private fun CalendarCard(
     calendarState: CalendarState,
+    dayStatuses: Map<LocalDate, DayStatus>,
     modifier: Modifier = Modifier,
     colors: CalendarCardColors = CalendarCardDefaults.colors(),
 ) {
@@ -119,7 +127,11 @@ private fun CalendarCard(
             }
             Spacer(Modifier.height(8.dp))
             Box(modifier = Modifier.fillMaxWidth()) {
-                CalendarCardDatePicker(calendarState = calendarState, colors = colors)
+                CalendarCardDatePicker(
+                    calendarState = calendarState,
+                    dayStatuses = dayStatuses,
+                    colors = colors,
+                )
             }
         }
     }
@@ -191,6 +203,7 @@ private fun CalendarCardDatePickerDialog(
 @Composable
 private fun CalendarCardDatePicker(
     calendarState: CalendarState,
+    dayStatuses: Map<LocalDate, DayStatus>,
     colors: CalendarCardColors,
     modifier: Modifier = Modifier,
 ) {
@@ -216,6 +229,7 @@ private fun CalendarCardDatePicker(
             DatePickerRowItem(
                 calendarState = calendarState,
                 date = date,
+                dayStatus = dayStatuses[date] ?: DayStatus.None,
                 colors = colors,
                 onClick = {
                     calendarState.onDateSelect(date = date, scroll = false)
@@ -230,6 +244,7 @@ private fun CalendarCardDatePicker(
 private fun DatePickerRowItem(
     calendarState: CalendarState,
     date: LocalDate,
+    dayStatus: DayStatus,
     colors: CalendarCardColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -262,6 +277,18 @@ private fun DatePickerRowItem(
             label = "Date text color",
         )
 
+    val dotColor by
+        animateColorAsState(
+            targetValue =
+                when (dayStatus) {
+                    DayStatus.NearGoal -> Color(0xFF4CAF50)
+                    DayStatus.OffGoal -> MaterialTheme.colorScheme.tertiary
+                    DayStatus.None -> Color.Transparent
+                },
+            animationSpec = tween(500),
+            label = "Day status dot color",
+        )
+
     Box(
         modifier =
             modifier
@@ -276,6 +303,7 @@ private fun DatePickerRowItem(
         Column(
             modifier = Modifier.aspectRatio(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Text(
                 text = namesOfDayOfWeek[dayOfWeek],
@@ -288,6 +316,14 @@ private fun DatePickerRowItem(
                 style = MaterialTheme.typography.bodyMedium,
                 color = color,
                 textAlign = TextAlign.Center,
+            )
+            // Status dot — always occupies space to keep cell height consistent
+            Box(
+                modifier =
+                    Modifier.padding(top = 2.dp)
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(dotColor),
             )
         }
     }

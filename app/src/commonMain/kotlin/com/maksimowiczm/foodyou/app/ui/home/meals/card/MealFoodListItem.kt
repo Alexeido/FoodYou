@@ -112,7 +112,7 @@ internal fun MealFoodListItem(
                             val name = entry.name
                             if (name.contains(" (") && name.endsWith(")")) {
                                 val idx = name.lastIndexOf(" (")
-                                val b = name.substring(idx + 2, name.length - 1)
+                                val b = name.substring(idx + 2, name.length - 1).split(',').first().trim()
                                 name.substring(0, idx) to b
                             } else {
                                 name to null

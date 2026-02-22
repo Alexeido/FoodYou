@@ -53,4 +53,9 @@ interface ManualDiaryEntryDao {
     @Update suspend fun update(entry: ManualDiaryEntryEntity)
 
     @Query("DELETE FROM ManualDiaryEntry WHERE id = :id") suspend fun delete(id: Long)
+
+    @Query(
+        "SELECT DISTINCT dateEpochDay FROM ManualDiaryEntry WHERE dateEpochDay BETWEEN :from AND :to"
+    )
+    fun observeActiveDays(from: Long, to: Long): Flow<List<Long>>
 }

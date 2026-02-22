@@ -1,0 +1,14 @@
+New features
+- Drag-and-drop reordering of meal entries.
+- Calendar streak indicator with tiered colors (white 1-6 days, blue 7-13 days, gold 14+ days).
+- Daily goal progress dots on the calendar.
+- Compact goals card now shows nutrient letters (P/G/C) and gram values inside the bars.
+- Mini goals bar appears when scrolling past the goals card.
+- Category icons for food items.
+- OpenFoodFacts: Alt. DB button to retry failed searches on the alternative server.
+- OpenFoodFacts: Faster barcode search — results appear immediately.
+
+Changes
+- Fork maintained by Alexeido (github.com/Alexeido/FoodYou).
+- Meal entries now show only the primary brand name.
+- Improved Spanish translations.

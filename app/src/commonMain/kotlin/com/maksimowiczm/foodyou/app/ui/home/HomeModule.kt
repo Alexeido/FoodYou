@@ -1,5 +1,7 @@
 package com.maksimowiczm.foodyou.app.ui.home
 
+import com.maksimowiczm.foodyou.app.ui.home.calendar.CalendarDayStatusUseCase
+import com.maksimowiczm.foodyou.app.ui.home.calendar.CalendarViewModel
 import com.maksimowiczm.foodyou.app.ui.home.goals.GoalsViewModel
 import com.maksimowiczm.foodyou.app.ui.home.master.HomeViewModel
 import com.maksimowiczm.foodyou.app.ui.home.meals.card.MealsCardsViewModel
@@ -8,6 +10,7 @@ import com.maksimowiczm.foodyou.app.ui.home.personalization.HomePersonalizationV
 import com.maksimowiczm.foodyou.app.ui.home.poll.PollsViewModel
 import com.maksimowiczm.foodyou.common.infrastructure.koin.userPreferencesRepository
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.viewModel
 
 fun Module.home() {
@@ -36,6 +39,17 @@ fun Module.home() {
         PollsViewModel(
             observeActivePollUseCase = get(),
             pollPreferencesRepository = userPreferencesRepository(),
+        )
+    }
+
+    factoryOf(::CalendarDayStatusUseCase)
+    viewModel {
+        CalendarViewModel(
+            calendarDayStatusUseCase = get(),
+            goalsRepository = get(),
+            measurementDao = get(),
+            manualDiaryEntryDao = get(),
+            dateProvider = get(),
         )
     }
 }

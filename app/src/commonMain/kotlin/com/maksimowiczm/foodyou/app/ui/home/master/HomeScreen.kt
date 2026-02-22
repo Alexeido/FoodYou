@@ -7,26 +7,33 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.home.calendar.CalendarCard
+import com.maksimowiczm.foodyou.app.ui.home.calendar.CalendarViewModel
 import com.maksimowiczm.foodyou.app.ui.home.goals.GoalsCard
 import com.maksimowiczm.foodyou.app.ui.home.goals.GoalsMiniBar
 import com.maksimowiczm.foodyou.app.ui.home.goals.GoalsViewModel
@@ -63,6 +70,9 @@ fun HomeScreen(
     val viewModel: HomeViewModel = koinViewModel()
     val order by viewModel.homeOrder.collectAsStateWithLifecycle()
     val homeState = rememberHomeState()
+
+    val calendarViewModel: CalendarViewModel = koinViewModel()
+    val streak by calendarViewModel.streak.collectAsStateWithLifecycle()
 
     val goalsViewModel: GoalsViewModel = koinViewModel()
     val goalsModel by goalsViewModel.model.collectAsStateWithLifecycle()
@@ -149,6 +159,29 @@ fun HomeScreen(
                         )
                     },
                     actions = {
+                        if (streak > 0) {
+                            val streakColor = when {
+                                streak >= 14 -> Color(0xFFFFD700)
+                                streak >= 7 -> Color(0xFF2196F3)
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(end = 4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = streakColor,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Text(
+                                    text = streak.toString(),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = streakColor,
+                                )
+                            }
+                        }
                         IconButton(onClick = onSettings) {
                             Icon(
                                 imageVector = Icons.Filled.Settings,

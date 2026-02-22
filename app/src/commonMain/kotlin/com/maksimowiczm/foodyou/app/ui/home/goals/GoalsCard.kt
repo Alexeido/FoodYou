@@ -7,6 +7,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -125,8 +127,11 @@ internal fun GoalsCard(
                 energy = energy,
                 energyGoal = energyGoal,
                 proteinsPercentage = proteinsPercentage,
+                proteinsGrams = proteins,
                 carbsPercentage = carbsPercentage,
+                carbohydratesGrams = carbohydrates,
                 fatsPercentage = fatsPercentage,
+                fatsGrams = fats,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -158,8 +163,11 @@ private fun GoalsCardContent(
     energy: Int,
     energyGoal: Int,
     proteinsPercentage: Float,
+    proteinsGrams: Int,
     carbsPercentage: Float,
+    carbohydratesGrams: Int,
     fatsPercentage: Float,
+    fatsGrams: Int,
     modifier: Modifier = Modifier,
 ) {
     val nutrientsPalette = LocalNutrientsPalette.current
@@ -226,11 +234,13 @@ private fun GoalsCardContent(
             }
         }
 
-        Row(modifier = Modifier.height(64.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             nutrientsOrder.forEach { field ->
                 when (field) {
                     NutrientsOrder.Proteins ->
-                        MacroBar(
+                        MacroBarWithLabel(
+                            shortLabel = stringResource(Res.string.nutriment_proteins_short),
+                            grams = proteinsGrams,
                             progress = proteinsPercentage,
                             containerColor =
                                 nutrientsPalette.proteinsOnSurfaceContainer.copy(alpha = .25f),
@@ -238,7 +248,9 @@ private fun GoalsCardContent(
                         )
 
                     NutrientsOrder.Fats ->
-                        MacroBar(
+                        MacroBarWithLabel(
+                            shortLabel = stringResource(Res.string.nutriment_fats_short),
+                            grams = fatsGrams,
                             progress = fatsPercentage,
                             containerColor =
                                 nutrientsPalette.fatsOnSurfaceContainer.copy(alpha = .25f),
@@ -246,7 +258,9 @@ private fun GoalsCardContent(
                         )
 
                     NutrientsOrder.Carbohydrates ->
-                        MacroBar(
+                        MacroBarWithLabel(
+                            shortLabel = stringResource(Res.string.nutriment_carbohydrates_short),
+                            grams = carbohydratesGrams,
                             progress = carbsPercentage,
                             containerColor =
                                 nutrientsPalette.carbohydratesOnSurfaceContainer.copy(alpha = .25f),
@@ -312,6 +326,44 @@ private fun MacroBar(
                 size = Size(width = size.width, height = size.height * progress - 1.dp.toPx()),
             )
         }
+    }
+}
+
+@Composable
+private fun MacroBarWithLabel(
+    shortLabel: String,
+    grams: Int,
+    progress: Float,
+    containerColor: Color,
+    barColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Box(
+            modifier = Modifier.height(64.dp),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            MacroBar(
+                progress = progress,
+                containerColor = containerColor,
+                barColor = barColor,
+            )
+            Text(
+                text = shortLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(bottom = 2.dp),
+            )
+        }
+        Text(
+            text = "$grams",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+        )
     }
 }
 
@@ -480,7 +532,7 @@ internal fun GoalsMiniBar(
                 when (field) {
                     NutrientsOrder.Proteins ->
                         MiniMacroColumn(
-                            label = stringResource(Res.string.nutriment_proteins_short),
+                            label = stringResource(Res.string.nutriment_proteins),
                             value = "$proteins",
                             goal = "$proteinsGoal",
                             progress = if (proteinsGoal > 0) (proteins.toFloat() / proteinsGoal).coerceIn(0f, 1f) else 0f,
@@ -491,7 +543,7 @@ internal fun GoalsMiniBar(
 
                     NutrientsOrder.Carbohydrates ->
                         MiniMacroColumn(
-                            label = stringResource(Res.string.nutriment_carbohydrates_short),
+                            label = stringResource(Res.string.nutriment_carbohydrates),
                             value = "$carbohydrates",
                             goal = "$carbohydratesGoal",
                             progress = if (carbohydratesGoal > 0) (carbohydrates.toFloat() / carbohydratesGoal).coerceIn(0f, 1f) else 0f,
@@ -502,7 +554,7 @@ internal fun GoalsMiniBar(
 
                     NutrientsOrder.Fats ->
                         MiniMacroColumn(
-                            label = stringResource(Res.string.nutriment_fats_short),
+                            label = stringResource(Res.string.nutriment_fats),
                             value = "$fats",
                             goal = "$fatsGoal",
                             progress = if (fatsGoal > 0) (fats.toFloat() / fatsGoal).coerceIn(0f, 1f) else 0f,
@@ -542,6 +594,8 @@ private fun MiniMacroColumn(
             text = label,
             style = typography.labelSmall,
             color = colorScheme.outline,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = buildAnnotatedString {

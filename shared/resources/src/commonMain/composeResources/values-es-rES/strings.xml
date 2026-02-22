@@ -74,7 +74,7 @@
     <string name="nutriment_carbohydrates_short">C</string>
     <string name="nutriment_sugars">Azúcares</string>
     <string name="nutriment_fats">Grasas</string>
-    <string name="nutriment_fats_short">F</string>
+    <string name="nutriment_fats_short">G</string>
     <string name="nutriment_saturated_fats">Grasas saturadas</string>
     <string name="nutriment_polyunsaturated_fats">Grasas poliinsaturadas</string>
     <string name="nutriment_monounsaturated_fats">Grasas monoinsaturadas</string>
@@ -258,6 +258,7 @@
     <string name="x_kcal_per_g">%1$s %2$d kcal/g</string>
     <string name="neutral_an_error_occurred">Ha ocurrido un error</string>
     <string name="action_retry">Reintentar</string>
+    <string name="action_alternative_db">BD alternativa</string>
     <string name="action_import">Importar</string>
     <string name="headline_today" description="Today, date">Hoy, %1$s</string>
     <string name="headline_yesterday" description="Yesterday, date">Ayer, %1$s</string>

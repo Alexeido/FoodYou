@@ -67,6 +67,7 @@ fun FoodSearchApp(
         onToggleFavorite = viewModel::toggleFavorite,
         onFoodClick = onFoodClick,
         onUpdateUsdaApiKey = onUpdateUsdaApiKey,
+        onAlternativeDb = viewModel::searchOnAlternativeDb,
         modifier = modifier,
     )
 }
@@ -80,6 +81,7 @@ private fun FoodSearchApp(
     onToggleFavorite: (com.maksimowiczm.foodyou.food.domain.entity.FoodId.Product, Boolean) -> Unit,
     onFoodClick: (FoodSearch, Measurement) -> Unit,
     onUpdateUsdaApiKey: () -> Unit,
+    onAlternativeDb: () -> Unit,
     modifier: Modifier = Modifier,
     appState: FoodSearchAppState = rememberFoodSearchAppState(),
 ) {
@@ -179,6 +181,7 @@ private fun FoodSearchApp(
                     FoodSearchErrorCard(
                         error = ex,
                         onRetry = pages::retry,
+                        onAlternativeDb = onAlternativeDb,
                         onUsdaApiKey = onUpdateUsdaApiKey,
                         modifier =
                             Modifier.fillMaxWidth().padding(top = 8.dp).padding(horizontal = 16.dp),

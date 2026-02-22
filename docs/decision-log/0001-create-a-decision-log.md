@@ -11,7 +11,7 @@ rationale can be lost over time.
 
 Example issues that highlight the need for a decision log:
 
-- [#239](https://github.com/maksimowiczm/FoodYou/issues/239)
+- [#239](https://github.com/Alexeido/FoodYou/issues/239)
 
 ### Decision
 

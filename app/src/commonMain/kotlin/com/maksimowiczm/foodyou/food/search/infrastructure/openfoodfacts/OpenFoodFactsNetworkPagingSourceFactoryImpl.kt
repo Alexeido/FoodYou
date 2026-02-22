@@ -20,7 +20,7 @@ internal class OpenFoodFactsNetworkPagingSourceFactoryImpl(
     private val dateProvider: DateProvider,
     private val logger: Logger,
 ) : OpenFoodFactsNetworkPagingSourceFactory {
-    override fun create(query: String): PagingSource<Int, FoodSearch> =
+    override fun create(query: String, useAlternativeDb: Boolean): PagingSource<Int, FoodSearch> =
         OpenFoodFactsNetworkPagingSource(
             query = query,
             country = null,
@@ -31,5 +31,22 @@ internal class OpenFoodFactsNetworkPagingSourceFactoryImpl(
             remoteMapper = remoteMapper,
             dateProvider = dateProvider,
             logger = logger,
+            baseUrl = if (useAlternativeDb) OpenFoodFactsRemoteDataSource.API_URL_ALT
+                      else OpenFoodFactsRemoteDataSource.API_URL,
+        )
+
+    override fun createForBarcode(barcode: String, useAlternativeDb: Boolean): PagingSource<Int, FoodSearch> =
+        OpenFoodFactsBarcodePagingSource(
+            barcode = barcode,
+            country = null,
+            remoteDataSource = remoteDataSource,
+            productRepository = productRepository,
+            foodHistoryRepository = foodHistoryRepository,
+            offMapper = offMapper,
+            remoteMapper = remoteMapper,
+            dateProvider = dateProvider,
+            logger = logger,
+            baseUrl = if (useAlternativeDb) OpenFoodFactsRemoteDataSource.API_URL_ALT
+                      else OpenFoodFactsRemoteDataSource.API_URL,
         )
 }

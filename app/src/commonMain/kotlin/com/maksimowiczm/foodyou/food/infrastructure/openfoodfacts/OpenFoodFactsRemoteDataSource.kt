@@ -28,10 +28,11 @@ internal class OpenFoodFactsRemoteDataSource(
     suspend fun getProduct(
         barcode: String,
         countries: String? = null,
+        baseUrl: String = API_URL,
     ): Result<OpenFoodFactsProduct> {
         try {
             val countries = countries?.lowercase()
-            val url = "${API_URL}/api/v2/product/$barcode"
+            val url = "$baseUrl/api/v2/product/$barcode"
 
             if (!rateLimiter.canMakeProductRequest()) {
                 logger.d(TAG) { "Rate limit exceeded for OpenFoodFacts API" }
@@ -74,6 +75,7 @@ internal class OpenFoodFactsRemoteDataSource(
         countries: String? = null,
         page: Int? = null,
         pageSize: Int = 50,
+        baseUrl: String = API_URL,
     ): OpenFoodPageResponse =
         try {
             if (!rateLimiter.canMakeSearchRequest()) {
@@ -84,7 +86,7 @@ internal class OpenFoodFactsRemoteDataSource(
             rateLimiter.recordSearchRequest()
 
             client
-                .get("${API_URL}/cgi/search.pl") {
+                .get("$baseUrl/cgi/search.pl") {
                     userAgent(networkConfig.userAgent)
                     parameter("search_terms", query)
                     parameter("search_simple", 1)
@@ -106,8 +108,9 @@ internal class OpenFoodFactsRemoteDataSource(
             }
         }
 
-    private companion object {
-        private const val API_URL = "https://world.openfoodfacts.org"
+    companion object {
+        const val API_URL = "https://world.openfoodfacts.org"
+        const val API_URL_ALT = "https://world.openfoodfacts.net"
         private const val TAG = "OpenFoodFactsRemoteDataSource"
         private const val TIMEOUT = 15_000L
     }

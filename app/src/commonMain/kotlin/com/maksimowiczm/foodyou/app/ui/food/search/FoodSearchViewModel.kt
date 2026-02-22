@@ -50,9 +50,21 @@ internal class FoodSearchViewModel(
     // Debounced query for network-backed sources (OOF, USDA) to avoid wasting the 10 req/min limit
     private val debouncedSearchQuery = searchQuery.debounce(300L)
 
+    // For OOF specifically: barcodes (all-digit queries) skip debounce — they arrive complete from scanner
+    private val openFoodFactsSearchQuery = searchQuery.debounce { query ->
+        if (query != null && query.all(Char::isDigit)) 0L else 300L
+    }
+
     private val filter = MutableStateFlow(FoodFilter())
 
+    private val _useAlternativeDb = MutableStateFlow(false)
+
+    fun searchOnAlternativeDb() {
+        _useAlternativeDb.value = true
+    }
+
     fun search(query: String?) {
+        _useAlternativeDb.value = false
         viewModelScope.launch { searchQuery.emit(query) }
     }
 
@@ -121,7 +133,23 @@ internal class FoodSearchViewModel(
         }
 
     private val openFoodFactsPages =
-        observeFoodPages(FoodSource.Type.OpenFoodFacts, debounced = true).cachedIn(viewModelScope)
+        combine(
+            openFoodFactsSearchQuery,
+            filter,
+            _useAlternativeDb,
+        ) { query, currentFilter, useAlt -> Triple(query, currentFilter, useAlt) }
+            .flatMapLatest { (query, currentFilter, useAlt) ->
+                if (currentFilter.favorites) {
+                    foodSearchUseCase.searchFavorites(query, null, excludedRecipeId)
+                } else {
+                    foodSearchUseCase.search(
+                        query,
+                        FoodSource.Type.OpenFoodFacts,
+                        excludedRecipeId,
+                        useAlt,
+                    )
+                }
+            }.cachedIn(viewModelScope)
     private val openFoodFactsState =
         combine(observeFoodCount(FoodSource.Type.OpenFoodFacts), foodPreferences) { count, prefs ->
             FoodSourceUiState(

@@ -9,6 +9,7 @@ import com.maksimowiczm.foodyou.common.log.Logger
 import com.maksimowiczm.foodyou.food.domain.entity.FoodHistory
 import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.entity.Product
+import com.maksimowiczm.foodyou.food.domain.entity.RemoteFoodException
 import com.maksimowiczm.foodyou.food.domain.repository.FoodHistoryRepository
 import com.maksimowiczm.foodyou.food.domain.repository.ProductRepository
 import com.maksimowiczm.foodyou.food.infrastructure.network.RemoteProductMapper
@@ -26,6 +27,7 @@ internal class OpenFoodFactsNetworkPagingSource(
     private val remoteMapper: RemoteProductMapper,
     private val dateProvider: DateProvider,
     private val logger: Logger,
+    private val baseUrl: String = OpenFoodFactsRemoteDataSource.API_URL,
 ) : PagingSource<Int, FoodSearch>() {
 
     override fun getRefreshKey(state: PagingState<Int, FoodSearch>): Int? = null
@@ -38,6 +40,7 @@ internal class OpenFoodFactsNetworkPagingSource(
                 countries = country,
                 page = page,
                 pageSize = params.loadSize,
+                baseUrl = baseUrl,
             )
             val now = dateProvider.nowInstant()
             val foods = response.products.mapNotNull { offProduct ->
@@ -86,6 +89,75 @@ internal class OpenFoodFactsNetworkPagingSource(
 
     private companion object {
         const val TAG = "OpenFoodFactsNetworkPagingSource"
+    }
+}
+
+internal class OpenFoodFactsBarcodePagingSource(
+    private val barcode: String,
+    private val country: String?,
+    private val remoteDataSource: OpenFoodFactsRemoteDataSource,
+    private val productRepository: ProductRepository,
+    private val foodHistoryRepository: FoodHistoryRepository,
+    private val offMapper: OpenFoodFactsProductMapper,
+    private val remoteMapper: RemoteProductMapper,
+    private val dateProvider: DateProvider,
+    private val logger: Logger,
+    private val baseUrl: String = OpenFoodFactsRemoteDataSource.API_URL,
+) : PagingSource<Int, FoodSearch>() {
+
+    override fun getRefreshKey(state: PagingState<Int, FoodSearch>): Int? = null
+
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, FoodSearch> {
+        if (params is LoadParams.Append) {
+            return LoadResult.Page(emptyList(), null, null)
+        }
+        return try {
+            val offProduct = remoteDataSource.getProduct(
+                barcode = barcode,
+                countries = country,
+                baseUrl = baseUrl,
+            ).getOrElse { e ->
+                return if (e is RemoteFoodException.ProductNotFoundException) {
+                    LoadResult.Page(emptyList(), null, null)
+                } else {
+                    LoadResult.Error(e as Exception)
+                }
+            }
+
+            val now = dateProvider.nowInstant()
+            val product = offMapper.toRemoteProduct(offProduct).let(remoteMapper::toModel)
+
+            val id = productRepository.insertUniqueProduct(
+                name = product.name,
+                brand = product.brand,
+                barcode = product.barcode,
+                note = product.note,
+                isLiquid = product.isLiquid,
+                packageWeight = product.packageWeight,
+                servingWeight = product.servingWeight,
+                source = product.source,
+                nutritionFacts = product.nutritionFacts,
+                categories = product.categories,
+            ) ?: return LoadResult.Page(emptyList(), null, null)
+
+            foodHistoryRepository.insert(
+                foodId = id,
+                history = FoodHistory.Downloaded(timestamp = now, url = product.source.url),
+            )
+
+            LoadResult.Page(
+                data = listOf(product.toFoodSearch(id)),
+                prevKey = null,
+                nextKey = null,
+            )
+        } catch (e: Exception) {
+            LoadResult.Error(e)
+        }
+    }
+
+    private companion object {
+        @Suppress("unused")
+        const val TAG = "OpenFoodFactsBarcodePagingSource"
     }
 }
 
