@@ -178,7 +178,7 @@ internal class OpenFoodFactsRemoteMediator<K : Any, T : Any>(
     private companion object {
         private const val TAG = "OpenFoodFactsRemoteMediator"
 
-        // Feeling good about this page size might adjust later
-        private const val PAGE_SIZE = 50
+        // 24 matches the OpenFoodFacts v2 API default — smaller pages load faster for the user
+        private const val PAGE_SIZE = 24
     }
 }

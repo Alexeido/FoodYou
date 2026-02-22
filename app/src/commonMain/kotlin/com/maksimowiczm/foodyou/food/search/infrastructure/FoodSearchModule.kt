@@ -6,6 +6,8 @@ import com.maksimowiczm.foodyou.food.domain.repository.FoodSearchHistoryReposito
 import com.maksimowiczm.foodyou.food.search.domain.FoodRemoteMediatorFactoryAggregate
 import com.maksimowiczm.foodyou.food.search.domain.FoodSearchRepository
 import com.maksimowiczm.foodyou.food.search.domain.ProductRemoteMediatorFactory
+import com.maksimowiczm.foodyou.food.search.domain.OpenFoodFactsNetworkPagingSourceFactory
+import com.maksimowiczm.foodyou.food.search.infrastructure.openfoodfacts.OpenFoodFactsNetworkPagingSourceFactoryImpl
 import com.maksimowiczm.foodyou.food.search.infrastructure.openfoodfacts.OpenFoodFactsRemoteMediatorFactory
 import com.maksimowiczm.foodyou.food.search.infrastructure.repository.DataStoreFoodSearchPreferencesRepository
 import com.maksimowiczm.foodyou.food.search.infrastructure.repository.RoomFoodSearchHistoryRepository
@@ -29,6 +31,7 @@ fun Module.foodSearchInfrastructureModule() {
     factory { database.usdaPagingKeyDao }
     factory { database.openFoodFactsPagingKeyDao }
 
+    factoryOf(::OpenFoodFactsNetworkPagingSourceFactoryImpl).bind<OpenFoodFactsNetworkPagingSourceFactory>()
     factoryOf(::OpenFoodFactsRemoteMediatorFactory).bind<ProductRemoteMediatorFactory>()
     factory {
             USDARemoteMediatorFactory(

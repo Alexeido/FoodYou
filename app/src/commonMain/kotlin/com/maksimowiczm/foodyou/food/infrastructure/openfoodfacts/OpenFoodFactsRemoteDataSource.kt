@@ -9,6 +9,7 @@ import com.maksimowiczm.foodyou.food.infrastructure.openfoodfacts.model.v1.OpenF
 import com.maksimowiczm.foodyou.food.infrastructure.openfoodfacts.model.v2.OpenFoodFactsProductResponseV2
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -83,13 +84,15 @@ internal class OpenFoodFactsRemoteDataSource(
             rateLimiter.recordSearchRequest()
 
             client
-                .get("${API_URL}/cgi/search.pl?search_simple=1&json=1") {
+                .get("${API_URL}/cgi/search.pl") {
                     userAgent(networkConfig.userAgent)
                     parameter("search_terms", query)
+                    parameter("search_simple", 1)
+                    parameter("action", "process")
+                    parameter("json", 1)
                     parameter("countries", countries)
                     parameter("page", page)
                     parameter("page_size", pageSize)
-                    parameter("sort_by", "product_name")
                     parameter("fields", FIELDS)
                 }
                 .body<OpenFoodFactsPageResponseV1>()
@@ -97,6 +100,8 @@ internal class OpenFoodFactsRemoteDataSource(
             when (e) {
                 is CancellationException -> throw e
                 is RemoteFoodException -> throw e
+                is HttpRequestTimeoutException ->
+                    throw RemoteFoodException.Unknown("Search timed out. Check your connection and try again.")
                 else -> throw RemoteFoodException.Unknown(e.message)
             }
         }
@@ -104,7 +109,7 @@ internal class OpenFoodFactsRemoteDataSource(
     private companion object {
         private const val API_URL = "https://world.openfoodfacts.org"
         private const val TAG = "OpenFoodFactsRemoteDataSource"
-        private const val TIMEOUT = 60_000L
+        private const val TIMEOUT = 15_000L
     }
 }
 

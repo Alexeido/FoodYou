@@ -1,6 +1,7 @@
 package com.maksimowiczm.foodyou.food.search.domain
 
 import androidx.paging.ExperimentalPagingApi
+import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.RemoteMediator
@@ -19,6 +20,7 @@ class FoodSearchUseCase(
     private val foodSearchRepository: FoodSearchRepository,
     private val foodSearchPreferencesRepository: UserPreferencesRepository<FoodSearchPreferences>,
     private val foodRemoteMediatorFactoryAggregate: FoodRemoteMediatorFactoryAggregate,
+    private val openFoodFactsNetworkPagingSourceFactory: OpenFoodFactsNetworkPagingSourceFactory,
     private val eventBus: EventBus,
     private val dateProvider: DateProvider,
 ) {
@@ -34,13 +36,26 @@ class FoodSearchUseCase(
         }
 
         return foodSearchPreferencesRepository.observe().flatMapLatest { prefs ->
-            foodSearchRepository.search(
-                query = query,
-                source = source,
-                config = PagingConfig(pageSize = PAGE_SIZE),
-                remoteMediatorFactory = prefs.remoteMediatorFactory(source)?.wrap(query),
-                excludedRecipeId = excludedRecipeId,
-            )
+            // For OOF text search: bypass Room round-trip with a direct network PagingSource.
+            // Barcode queries still use RemoteMediator (special single-product fetch).
+            if (source == FoodSource.Type.OpenFoodFacts
+                && prefs.openFoodFacts.enabled
+                && query is SearchQuery.Text) {
+                Pager(
+                    config = PagingConfig(pageSize = PAGE_SIZE),
+                    pagingSourceFactory = {
+                        openFoodFactsNetworkPagingSourceFactory.create(query.query)
+                    },
+                ).flow
+            } else {
+                foodSearchRepository.search(
+                    query = query,
+                    source = source,
+                    config = PagingConfig(pageSize = PAGE_SIZE),
+                    remoteMediatorFactory = prefs.remoteMediatorFactory(source)?.wrap(query),
+                    excludedRecipeId = excludedRecipeId,
+                )
+            }
         }
     }
 
@@ -103,6 +118,6 @@ class FoodSearchUseCase(
         }
 
     private companion object {
-        const val PAGE_SIZE = 30
+        const val PAGE_SIZE = 24
     }
 }
