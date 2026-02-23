@@ -43,6 +43,7 @@ import com.maksimowiczm.foodyou.app.ui.common.form.positiveFloatValidator
 import com.maksimowiczm.foodyou.app.ui.common.form.rememberFormField
 import com.maksimowiczm.foodyou.app.ui.common.utility.Saver
 import com.maksimowiczm.foodyou.app.ui.common.utility.stringResource
+import com.maksimowiczm.foodyou.app.ui.common.utility.stringResourceWithWeight
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.common.domain.measurement.MeasurementType
@@ -53,7 +54,13 @@ import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun MeasurementPicker(state: MeasurementPickerState, modifier: Modifier = Modifier) {
+fun MeasurementPicker(
+    state: MeasurementPickerState,
+    modifier: Modifier = Modifier,
+    servingWeight: Double? = null,
+    totalWeight: Double? = null,
+    isLiquid: Boolean = false,
+) {
     val latestState by rememberUpdatedState(state)
     LaunchedEffect(state.inputField.value, state.type) {
         val value = state.inputField.value ?: return@LaunchedEffect
@@ -85,6 +92,12 @@ fun MeasurementPicker(state: MeasurementPickerState, modifier: Modifier = Modifi
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             state.suggestions.forEach { measurement ->
+                val chipLabel =
+                    measurement.stringResourceWithWeight(
+                        totalWeight = totalWeight,
+                        servingWeight = servingWeight,
+                        isLiquid = isLiquid,
+                    ) ?: measurement.stringResource()
                 SuggestionChip(
                     onClick = {
                         state.inputField.textFieldState.setTextAndPlaceCursorAtEnd(
@@ -92,7 +105,7 @@ fun MeasurementPicker(state: MeasurementPickerState, modifier: Modifier = Modifi
                         )
                         state.type = measurement.type
                     },
-                    label = { Text(measurement.stringResource()) },
+                    label = { Text(chipLabel) },
                 )
             }
         }
@@ -235,4 +248,9 @@ class MeasurementPickerState(
 ) {
     var measurement by measurementState
     var type by typeState
+
+    fun setWeightGrams(grams: Float) {
+        type = MeasurementType.Gram
+        inputField.textFieldState.setTextAndPlaceCursorAtEnd(grams.toDouble().formatClipZeros())
+    }
 }

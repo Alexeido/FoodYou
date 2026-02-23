@@ -1,0 +1,10 @@
+Fixes
+- Barcode search now instantly shows products already in local cache.
+
+Changes
+- Redesigned 'Add food' screen: macros (kcal/P/C/G) visible at top, tappable to edit —
+  entering a target value auto-adjusts the portion weight.
+- Serving size shown in portion chips (e.g. '1 × Serving (30 g)').
+- Nutrients with unknown values (N/A) are no longer shown.
+- Vitamins, Minerals and Other sections are collapsed by default.
+- Save button is now a compact icon FAB.

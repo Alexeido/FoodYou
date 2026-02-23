@@ -37,8 +37,8 @@ class FoodSearchUseCase(
         }
 
         return foodSearchPreferencesRepository.observe().flatMapLatest { prefs ->
-            // For OOF: bypass Room round-trip with direct network PagingSource for both text and
-            // barcode queries. Barcodes use a single-product endpoint (V2); text uses search (V1).
+            // For OOF text queries: bypass Room round-trip with direct network PagingSource (V1).
+            // Barcode queries use local-first (RemoteMediator) so cached products show instantly.
             if (source == FoodSource.Type.OpenFoodFacts && prefs.openFoodFacts.enabled) {
                 when (query) {
                     is SearchQuery.Text ->
@@ -46,13 +46,6 @@ class FoodSearchUseCase(
                             config = PagingConfig(pageSize = PAGE_SIZE),
                             pagingSourceFactory = {
                                 openFoodFactsNetworkPagingSourceFactory.create(query.query, useAlternativeDb)
-                            },
-                        ).flow
-                    is SearchQuery.Barcode ->
-                        Pager(
-                            config = PagingConfig(pageSize = PAGE_SIZE),
-                            pagingSourceFactory = {
-                                openFoodFactsNetworkPagingSourceFactory.createForBarcode(query.query, useAlternativeDb)
                             },
                         ).flow
                     else ->
