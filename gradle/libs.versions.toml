@@ -1,6 +1,6 @@
 [versions]
-version-name = "3.9A"
-android-versionCode = "119"
+version-name = "3.9.1"
+android-versionCode = "120"
 android-compileSdk = "36"
 android-minSdk = "28"
 android-targetSdk = "36"

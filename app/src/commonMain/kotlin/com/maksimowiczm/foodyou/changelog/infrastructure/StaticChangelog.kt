@@ -12,6 +12,7 @@ internal class StaticChangelog(private val appConfig: AppConfig) : Changelog {
     override val versions: List<Version>
         get() =
             listOf(
+                v_3_9_1,
                 v_3_9_A,
                 v_3_4_3,
                 v_3_4_2,
@@ -49,6 +50,25 @@ internal class StaticChangelog(private val appConfig: AppConfig) : Changelog {
                 v2_1_0,
                 v2_0_0,
             )
+
+    val v_3_9_1 =
+        Version(
+            version = "3.9.1",
+            date = LocalDate(2026, 2, 23),
+            bugFixes =
+                listOf(
+                    "Barcode search now shows previously downloaded products instantly from local cache.",
+                ),
+            changes =
+                listOf(
+                    "Add food screen redesigned: date selector removed, macros (kcal/P/C/G) visible " +
+                        "at the top and editable — tapping any value auto-adjusts the portion weight.",
+                    "Serving size shown in portion chips (e.g. '1 × Serving (30 g)').",
+                    "Nutrients with unknown values (N/A) are no longer shown.",
+                    "Vitamins, Minerals and Other sections are collapsed by default.",
+                    "Save button is now a compact icon FAB.",
+                ),
+        )
 
     val v_3_9_A =
         Version(
