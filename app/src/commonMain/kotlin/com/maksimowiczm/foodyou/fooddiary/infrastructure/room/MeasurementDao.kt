@@ -104,6 +104,18 @@ abstract class MeasurementDao {
     @Query("SELECT DISTINCT epochDay FROM Measurement WHERE epochDay BETWEEN :from AND :to")
     abstract fun observeActiveDays(from: Long, to: Long): Flow<List<Long>>
 
+    /** Recent logged meals as (mealId, epochDay) groups, most recently touched first. */
+    @Query(
+        """
+        SELECT mealId AS mealId, epochDay AS epochDay, MAX(createdAt) AS lastCreatedAt
+        FROM Measurement
+        GROUP BY mealId, epochDay
+        ORDER BY lastCreatedAt DESC
+        LIMIT :limit
+        """
+    )
+    abstract fun observeRecentMealGroups(limit: Int): Flow<List<RecentMealGroup>>
+
     @Query(
         """
         SELECT *

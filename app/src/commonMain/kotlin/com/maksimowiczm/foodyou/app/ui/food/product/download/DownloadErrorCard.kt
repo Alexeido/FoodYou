@@ -101,6 +101,8 @@ private fun DownloadErrorCard(
                     modifier = modifier,
                 )
 
+            is RemoteFoodException.Custom -> error.message
+
             is RemoteFoodException.Unknown -> error.message
         } ?: stringResource(Res.string.error_unknown_error)
 

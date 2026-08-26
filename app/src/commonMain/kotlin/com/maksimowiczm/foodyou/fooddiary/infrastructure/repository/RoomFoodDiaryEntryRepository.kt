@@ -18,6 +18,7 @@ import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipe
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipeIngredient
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.RecentMealRef
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryProductEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryRecipeEntity
@@ -102,6 +103,11 @@ internal class RoomFoodDiaryEntryRepository(
                     .combine()
             }
     }
+
+    override fun observeRecentMealRefs(limit: Int): Flow<List<RecentMealRef>> =
+        dao.observeRecentMealGroups(limit).map { groups ->
+            groups.map { RecentMealRef(mealId = it.mealId, date = LocalDate.fromEpochDays(it.epochDay)) }
+        }
 
     override suspend fun insert(
         measurement: Measurement,

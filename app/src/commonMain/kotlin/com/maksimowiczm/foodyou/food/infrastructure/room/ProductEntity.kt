@@ -14,6 +14,12 @@ data class ProductEntity(
     val name: String,
     val brand: String?,
     val barcode: String?,
+    /**
+     * Immutable EAN as it comes from the remote source. Used as the identity anchor to
+     * recognize the same product on re-search and to look it up on manual refresh, even when the
+     * user overrides the visible [barcode] with a local one. `null` for user-created products.
+     */
+    val sourceBarcode: String? = null,
     @Embedded val nutrients: Nutrients,
     @Embedded val vitamins: Vitamins,
     @Embedded val minerals: Minerals,
@@ -25,4 +31,9 @@ data class ProductEntity(
     val isLiquid: Boolean,
     val categories: String? = null,
     val isFavorite: Boolean = false,
+    /**
+     * True when the user hand-edited this product. Edited products are durable: excluded from the
+     * stale-mirror purge and never overwritten by a passive re-search insert.
+     */
+    val isEdited: Boolean = false,
 )

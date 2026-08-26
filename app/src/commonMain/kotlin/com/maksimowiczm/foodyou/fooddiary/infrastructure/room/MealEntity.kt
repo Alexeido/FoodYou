@@ -12,4 +12,6 @@ data class MealEntity(
     val toHour: Int,
     val toMinute: Int,
     val rank: Int = 0,
+    /** Icon reference for the meal section: `mat:<id>` (Material icon) or `emoji:<char>`. */
+    val icon: String? = null,
 )

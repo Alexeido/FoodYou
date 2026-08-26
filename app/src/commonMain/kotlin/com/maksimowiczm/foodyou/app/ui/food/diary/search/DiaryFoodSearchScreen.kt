@@ -124,6 +124,8 @@ fun DiaryFoodSearchScreen(
             FoodSearchApp(
                 onFoodClick = { model, measurement -> onMeasure(model.id, measurement) },
                 onUpdateUsdaApiKey = onUpdateUsdaApiKey,
+                targetMealId = mealId,
+                targetDate = date,
                 modifier =
                     Modifier.padding(paddingValues)
                         .consumeWindowInsets(paddingValues)

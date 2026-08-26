@@ -32,6 +32,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.common.component.ArrowBackIconButton
+import com.maksimowiczm.foodyou.app.ui.common.component.CustomFoodSourcePrivacyCard
 import com.maksimowiczm.foodyou.app.ui.common.component.OpenFoodFactsPrivacyCard
 import com.maksimowiczm.foodyou.app.ui.common.component.UsdaPrivacyCard
 import com.maksimowiczm.foodyou.common.compose.extension.add
@@ -53,6 +54,7 @@ fun ExternalDatabasesScreen(
         model = model,
         onOpenFoodFactsChange = viewModel::toggleOpenFoodFacts,
         onUsdaChange = viewModel::toggleUsda,
+        onCustomChange = viewModel::toggleCustom,
         onSwissFoodCompositionDatabase = onSwissFoodCompositionDatabase,
         modifier = modifier,
     )
@@ -64,6 +66,7 @@ private fun ExternalDatabasesScreen(
     model: FoodPreferencesModel,
     onOpenFoodFactsChange: (Boolean) -> Unit,
     onUsdaChange: (Boolean) -> Unit,
+    onCustomChange: (Boolean) -> Unit,
     onSwissFoodCompositionDatabase: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -106,6 +109,13 @@ private fun ExternalDatabasesScreen(
             }
             item {
                 UsdaPrivacyCard(selected = model.useUsda ?: false, onSelectedChange = onUsdaChange)
+            }
+
+            item {
+                CustomFoodSourcePrivacyCard(
+                    selected = model.useCustom ?: false,
+                    onSelectedChange = onCustomChange,
+                )
             }
 
             item {

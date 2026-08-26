@@ -8,4 +8,10 @@ internal fun Module.externalDatabasesModule() {
     viewModel {
         ExternalDatabasesViewModel(foodSearchPreferencesRepository = userPreferencesRepository())
     }
+    viewModel {
+        UpdateCustomFoodSourceDialogViewModel(
+            foodSearchPreferencesRepository = userPreferencesRepository(),
+            credentialsRepository = get(),
+        )
+    }
 }

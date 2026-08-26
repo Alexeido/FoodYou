@@ -30,6 +30,14 @@ sealed class RemoteFoodException(message: String?) : Exception(message) {
             OpenFoodFacts("OpenFoodFacts API rate limit exceeded. Please try again later.")
     }
 
+    sealed class Custom(message: String) : RemoteFoodException(message) {
+        class NotConfigured :
+            Custom("Custom food source is not configured. Please check your settings.")
+
+        class Unauthorized :
+            Custom("Custom food source rejected your credentials. Please check your settings.")
+    }
+
     companion object {
         fun fromThrowable(throwable: Throwable): RemoteFoodException =
             when (throwable) {

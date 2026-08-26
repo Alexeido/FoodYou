@@ -26,6 +26,7 @@ internal class MealSettingsViewModel(private val mealRepository: MealRepository)
                             from = meal.from,
                             to = meal.to,
                             isAllDay = meal.from == meal.to,
+                            icon = meal.icon,
                         )
                     }
             }
@@ -46,6 +47,7 @@ internal class MealSettingsViewModel(private val mealRepository: MealRepository)
                 name = mealModel.name,
                 from = mealModel.from,
                 to = mealModel.to,
+                icon = mealModel.icon,
             )
         }
     }
@@ -56,6 +58,7 @@ internal class MealSettingsViewModel(private val mealRepository: MealRepository)
                 name = mealModel.name,
                 from = mealModel.from,
                 to = mealModel.to,
+                icon = mealModel.icon,
             )
         }
     }

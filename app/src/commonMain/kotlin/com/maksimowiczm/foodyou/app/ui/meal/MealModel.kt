@@ -10,4 +10,5 @@ internal data class MealModel(
     val from: LocalTime,
     val to: LocalTime,
     val isAllDay: Boolean,
+    val icon: String? = null,
 )

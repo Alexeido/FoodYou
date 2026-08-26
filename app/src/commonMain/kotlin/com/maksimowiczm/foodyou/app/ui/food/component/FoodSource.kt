@@ -3,6 +3,7 @@ package com.maksimowiczm.foodyou.app.ui.food.component
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -39,6 +40,9 @@ fun FoodSource.Type.Icon(modifier: Modifier = Modifier) {
             )
 
         FoodSource.Type.SwissFoodCompositionDatabase -> Text("CH", modifier)
+
+        FoodSource.Type.Custom ->
+            Icon(imageVector = Icons.Filled.Cloud, contentDescription = null, modifier = modifier.size(24.dp))
     }
 }
 
@@ -50,4 +54,5 @@ fun FoodSource.Type.stringResource(): String =
         FoodSource.Type.USDA -> stringResource(Res.string.headline_food_data_central_usda)
         FoodSource.Type.SwissFoodCompositionDatabase ->
             stringResource(Res.string.headline_swiss_food_composition_database)
+        FoodSource.Type.Custom -> stringResource(Res.string.headline_custom_food_source)
     }

@@ -394,4 +394,44 @@
     <string name="description_replacing_database">Reemplazando base de datos, por favor espere...</string>
     <string name="headline_experimental">Experimental</string>
     <string name="description_privacy_policy">Observa cómo se manejan tus datos</string>
+
+    <!-- Rediseno del buscador, identidad de producto y comidas recientes -->
+    <string name="action_refresh_from_source">Actualizar desde la fuente</string>
+    <string name="neutral_product_refreshed">Producto actualizado desde la fuente</string>
+    <string name="neutral_product_refresh_no_source">Este producto no tiene fuente desde la que actualizarse</string>
+    <string name="neutral_product_refresh_not_found">Ya no se encuentra en la fuente</string>
+    <string name="error_product_refresh_unauthorized">La fuente rechazó las credenciales</string>
+    <string name="error_product_refresh_failed">No se pudo actualizar. Comprueba tu conexión.</string>
+    <string name="headline_source_barcode">Código de barras de la fuente</string>
+    <string name="description_source_barcode">Identidad en el servidor. Se usa para reconocer este producto y para actualizarlo. No editable.</string>
+    <string name="headline_your_food_short">Tuyos</string>
+    <string name="neutral_type_to_search_database">Escribe para buscar en tu base de datos</string>
+    <string name="description_type_to_search_database">Tu servidor se consulta en vivo al escribir o escanear, sin montones de resultados viejos.</string>
+    <string name="headline_primary_source">Fuente principal</string>
+    <string name="action_add_meal_block">Añadir</string>
+    <string name="neutral_added">Añadido</string>
+    <string name="headline_recent_meals">Comidas recientes</string>
+    <string name="headline_recent_foods">Alimentos recientes</string>
+    <string name="neutral_no_created_foods">Aún no has creado alimentos propios. Toca + para añadir uno.</string>
+    <string name="neutral_no_favorites">Aún no tienes favoritos. Toca el corazón de un alimento para guardarlo.</string>
+    <string name="neutral_nothing_added_here">Todavía no has añadido nada desde aquí. Busca para añadir algo.</string>
+    <string name="action_see_all">Ver todas</string>
+    <string name="headline_choose_icon">Elige un icono</string>
+    <string name="headline_icons_material">Iconos</string>
+    <string name="headline_icons_emoji">Emoji</string>
+    <string name="action_choose_icon">Elegir icono</string>
+    <string name="description_values_for">Valores para %1$s</string>
+    <string name="headline_goals_card_style">Estilo de la tarjeta</string>
+    <string name="description_goals_card_style">Cómo muestra los macros la tarjeta de objetivo diario</string>
+    <string name="goals_style_bars">Barras gruesas</string>
+    <string name="goals_style_columns">Columnas</string>
+    <string name="goals_style_ring">Anillo</string>
+    <string name="goals_style_arc">Arco</string>
+    <string name="goals_style_stacked">Apilada</string>
+    <string name="goals_style_numbers">Solo cifras</string>
+    <string name="goals_style_horizontal_bars">Barras horizontales</string>
+    <string name="headline_figure_value">Centro de la figura</string>
+    <string name="description_figure_value">Qué muestra el anillo o el arco en el centro</string>
+    <string name="figure_value_percentage">Porcentaje</string>
+    <string name="figure_value_energy">Calorías</string>
 </resources>

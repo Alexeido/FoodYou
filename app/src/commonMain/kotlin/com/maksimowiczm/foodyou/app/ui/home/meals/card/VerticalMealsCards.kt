@@ -48,11 +48,12 @@ internal fun LazyListScope.verticalMealsCardsItems(
     itemsIndexed(localFlatItems, key = { _, item -> item.key }) { index, item ->
         when (item) {
             is MealListItem.Header -> {
-                Column(Modifier.padding(horizontal = horizontalPadding)) {
+                Column(Modifier.animateItem().padding(horizontal = horizontalPadding)) {
                     if (index > 0) Spacer(Modifier.height(8.dp))
                     MealCardHeaderSection(
                         meal = item.meal,
                         onAddFood = { onAdd(item.meal.id) },
+                        onQuickAdd = { onQuickAdd(item.meal.id) },
                         onLongClick = { onLongClick(item.meal.id) },
                     )
                 }
@@ -88,7 +89,7 @@ internal fun LazyListScope.verticalMealsCardsItems(
                     meal = item.meal,
                     onAddFood = { onAdd(item.meal.id) },
                     onQuickAdd = { onQuickAdd(item.meal.id) },
-                    modifier = Modifier.padding(horizontal = horizontalPadding),
+                    modifier = Modifier.animateItem().padding(horizontal = horizontalPadding),
                 )
             }
 
@@ -99,14 +100,12 @@ internal fun LazyListScope.verticalMealsCardsItems(
                 // Styled with surfaceVariant + full 12dp rounding to match a combined
                 // first+last MealCardEntrySection — blends seamlessly with the meal card.
                 ReorderableItem(state = reorderState, key = item.key) { _ ->
-                    Surface(
+                    Spacer(
                         modifier = Modifier
                             .padding(horizontal = horizontalPadding)
                             .fillMaxWidth()
-                            .height(4.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(0.dp),
-                    ) {}
+                            .height(12.dp)
+                    )
                 }
             }
         }

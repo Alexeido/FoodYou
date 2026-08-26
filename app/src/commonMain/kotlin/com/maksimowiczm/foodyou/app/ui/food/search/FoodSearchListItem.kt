@@ -1,30 +1,40 @@
 package com.maksimowiczm.foodyou.app.ui.food.search
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.common.component.FoodErrorListItem
-import com.maksimowiczm.foodyou.app.ui.common.component.FoodListItem
 import com.maksimowiczm.foodyou.app.ui.common.component.FoodListItemSkeleton
+import com.maksimowiczm.foodyou.app.ui.common.theme.LocalNutrientsPalette
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalEnergyFormatter
-import com.maksimowiczm.foodyou.app.ui.common.utility.stringResourceWithWeight
-import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
+import com.maksimowiczm.foodyou.app.ui.food.component.parseHeadlineBrand
+import com.maksimowiczm.foodyou.app.ui.food.component.stripBrandFromName
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
+import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.entity.Recipe
 import com.maksimowiczm.foodyou.food.domain.usecase.ObserveFoodUseCase
 import com.maksimowiczm.foodyou.food.search.domain.FoodSearch
@@ -35,25 +45,14 @@ import kotlinx.coroutines.flow.mapNotNull
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-private fun parseHeadlineBrand(headline: String): Pair<String, String?> {
-    val open = headline.indexOf('(')
-    if (open == -1) return Pair(headline, null)
-    val close = headline.indexOf(')', startIndex = open + 1).takeIf { it > open } ?: return Pair(headline, null)
-    val before = headline.substring(0, open).trimEnd()
-    val inside = headline.substring(open + 1, close)
-    val first = inside.split(',').firstOrNull()?.trim() ?: inside.trim()
-    val brand = if (first.isEmpty()) null else first
-    return Pair(before, brand)
-}
-
-private fun truncateHeadlineBrand(headline: String): String {
-    val open = headline.indexOf('(')
-    if (open == -1) return headline
-    val close = headline.indexOf(')', startIndex = open + 1).takeIf { it > open } ?: return headline
-    val before = headline.substring(0, open).trimEnd()
-    val inside = headline.substring(open + 1, close)
-    val first = inside.split(',').firstOrNull()?.trim() ?: inside.trim()
-    return if (first.isEmpty()) headline else "$before ($first)"
+/** Compact number for the search list: at most one decimal, trailing ".0" clipped. */
+private fun Double.compact1(): String {
+    val rounded = (this * 10.0).roundToInt() / 10.0
+    return if (rounded == rounded.toLong().toDouble()) {
+        rounded.toLong().toString()
+    } else {
+        rounded.toString()
+    }
 }
 
 @Composable
@@ -61,40 +60,18 @@ internal fun FoodSearchListItem(
     food: FoodSearch.Product,
     measurement: Measurement,
     onClick: () -> Unit,
-    onToggleFavorite: ((com.maksimowiczm.foodyou.food.domain.entity.FoodId.Product, Boolean) -> Unit)? = null,
+    onToggleFavorite: ((FoodId.Product, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val weight = food.weight(measurement)
-    val factor = weight?.div(100)
+    // Search always shows per-100 g/ml values so products are comparable at a glance, regardless of
+    // each one's serving size.
+    val facts = food.nutritionFacts
+    val proteins = facts.proteins.value
+    val carbohydrates = facts.carbohydrates.value
+    val fats = facts.fats.value
+    val energy = facts.energy.value
 
-    if (factor == null) {
-        return FoodErrorListItem(
-            headline = food.headline,
-            errorMessage = stringResource(Res.string.error_measurement_error),
-            modifier = modifier,
-            onClick = onClick,
-        )
-    }
-
-    val measurementFacts = food.nutritionFacts * factor
-    val proteins = measurementFacts.proteins.value
-    val carbohydrates = measurementFacts.carbohydrates.value
-    val fats = measurementFacts.fats.value
-    val energy = measurementFacts.energy.value
-    val measurementString =
-        measurement.stringResourceWithWeight(
-            totalWeight = food.totalWeight,
-            servingWeight = food.servingWeight,
-            isLiquid = food.isLiquid,
-        )
-
-    if (
-        proteins == null ||
-        carbohydrates == null ||
-        fats == null ||
-        energy == null ||
-        measurementString == null
-    ) {
+    if (proteins == null || carbohydrates == null || fats == null || energy == null) {
         return FoodErrorListItem(
             headline = food.headline,
             modifier = modifier,
@@ -103,13 +80,12 @@ internal fun FoodSearchListItem(
         )
     }
 
-    FoodSearchListItem(
+    CompactFoodSearchRow(
         headline = food.headline,
         proteins = proteins,
         carbohydrates = carbohydrates,
         fats = fats,
         energy = energy,
-        measurement = { Text(measurementString) },
         categories = food.categories,
         isRecipe = false,
         onClick = onClick,
@@ -142,26 +118,17 @@ internal fun FoodSearchListItem(
         return FoodListItemSkeleton(shimmer)
     }
 
-    val factor = recipe.weight(measurement) / 100
-    val measurementFacts = recipe.nutritionFacts * factor
-    val proteins = measurementFacts.proteins.value
-    val carbohydrates = measurementFacts.carbohydrates.value
-    val fats = measurementFacts.fats.value
-    val energy = measurementFacts.energy.value
-
-    val measurementString =
-        measurement.stringResourceWithWeight(
-            totalWeight = recipe.totalWeight,
-            servingWeight = recipe.servingWeight,
-            isLiquid = recipe.isLiquid,
-        )
+    val facts = recipe.nutritionFacts
+    val proteins = facts.proteins.value
+    val carbohydrates = facts.carbohydrates.value
+    val fats = facts.fats.value
+    val energy = facts.energy.value
 
     if (
         (proteins == null || proteins.isNaN()) ||
-        (carbohydrates == null || carbohydrates.isNaN()) ||
-        (fats == null || fats.isNaN()) ||
-        (energy == null || energy.isNaN()) ||
-        measurementString == null
+            (carbohydrates == null || carbohydrates.isNaN()) ||
+            (fats == null || fats.isNaN()) ||
+            (energy == null || energy.isNaN())
     ) {
         return FoodErrorListItem(
             headline = food.headline,
@@ -171,13 +138,12 @@ internal fun FoodSearchListItem(
         )
     }
 
-    FoodSearchListItem(
+    CompactFoodSearchRow(
         headline = food.headline,
         proteins = proteins,
         carbohydrates = carbohydrates,
         fats = fats,
         energy = energy,
-        measurement = { Text(measurementString) },
         categories = null,
         isRecipe = true,
         onClick = onClick,
@@ -185,72 +151,140 @@ internal fun FoodSearchListItem(
     )
 }
 
+/**
+ * Dense search result row, modelled on the design mock: the category icon sits in a contrast box
+ * vertically centred against the whole row, the name/brand truncate with an ellipsis instead of
+ * wrapping, and weight + energy + macros share a single compact line ("200 g · 210 kcal · 24P ·
+ * 3.4G · 18C").
+ *
+ * Deliberately not built on [com.maksimowiczm.foodyou.app.ui.common.component.FoodListItem] — that
+ * one is shared with the home/meal/recipe screens and stays as-is.
+ */
 @Composable
-private fun FoodSearchListItem(
+private fun CompactFoodSearchRow(
     headline: String,
     proteins: Double,
     carbohydrates: Double,
     fats: Double,
     energy: Double,
-    measurement: @Composable () -> Unit,
     categories: List<String>?,
     isRecipe: Boolean,
     onClick: () -> Unit,
-    productId: com.maksimowiczm.foodyou.food.domain.entity.FoodId.Product? = null,
+    productId: FoodId.Product? = null,
     isFavorite: Boolean? = null,
-    onToggleFavorite: ((com.maksimowiczm.foodyou.food.domain.entity.FoodId.Product, Boolean) -> Unit)? = null,
+    onToggleFavorite: ((FoodId.Product, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val g = stringResource(Res.string.unit_gram_short)
     val category = categories?.let { getFoodCategoryFromTags(it) } ?: getFoodCategory(headline)
+    val palette = LocalNutrientsPalette.current
+    val (rawTitle, brand) = parseHeadlineBrand(headline)
+    // Drop the brand when it's repeated inside the name ("Altramuces Hacendado" -> "Altramuces").
+    val titleOnly = stripBrandFromName(rawTitle, brand)
 
-    FoodListItem(
-        name = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FoodCategoryIcon(category = category)
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    val (titleOnly, brand) = parseHeadlineBrand(headline)
-                    Text(text = titleOnly)
-                    brand?.let {
+    Surface(onClick = onClick, modifier = modifier, color = Color.Transparent) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.size(38.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    CompositionLocalProvider(
+                        LocalTextStyle provides LocalTextStyle.current.copy(fontSize = 17.sp)
+                    ) {
+                        FoodCategoryIcon(category = category)
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = titleOnly,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (brand != null) {
+                    Text(
+                        text = brand,
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // energy · macros, all on one line. Values are per 100 g/ml, so no unit label is
+                // shown — it would be the same on every row.
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CompositionLocalProvider(
+                        LocalTextStyle provides MaterialTheme.typography.bodySmall
+                    ) {
                         Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = LocalEnergyFormatter.current.formatEnergy(energy.roundToInt()),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = "${proteins.compact1()}P",
+                            color = palette.proteinsOnSurfaceContainer,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = "${fats.compact1()}G",
+                            color = palette.fatsOnSurfaceContainer,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = "${carbohydrates.compact1()}C",
+                            color = palette.carbohydratesOnSurfaceContainer,
+                            maxLines = 1,
                         )
                     }
                 }
             }
-        },
-        proteins = {
-            val text = proteins.formatClipZeros()
-            Text("$text $g")
-        },
-        carbohydrates = {
-            val text = carbohydrates.formatClipZeros()
-            Text("$text $g")
-        },
-        fats = {
-            val text = fats.formatClipZeros()
-            Text("$text $g")
-        },
-        calories = { Text(LocalEnergyFormatter.current.formatEnergy(energy.roundToInt())) },
-        measurement = measurement,
-        isRecipe = isRecipe,
-        modifier = modifier,
-        onClick = onClick,
-        trailingContent = {
-            if (!isRecipe && onToggleFavorite != null && productId != null && isFavorite != null) {
-                IconButton(onClick = { onToggleFavorite(productId, !isFavorite) }) {
-                    val icon = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
 
+            // Category badge — disabled for now to give the macros all the width they need.
+            // Re-enable by uncommenting; `category` is still computed above for the icon.
+            // if (!isRecipe && category != FoodCategory.UNKNOWN) {
+            //     Surface(
+            //         shape = RoundedCornerShape(8.dp),
+            //         color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            //     ) {
+            //         Text(
+            //             text = category.label,
+            //             style = MaterialTheme.typography.labelSmall,
+            //             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            //             maxLines = 1,
+            //             overflow = TextOverflow.Ellipsis,
+            //             modifier =
+            //                 Modifier.widthIn(max = 84.dp)
+            //                     .padding(horizontal = 8.dp, vertical = 3.dp),
+            //         )
+            //     }
+            // }
+
+            if (!isRecipe && onToggleFavorite != null && productId != null && isFavorite != null) {
+                IconButton(
+                    onClick = { onToggleFavorite(productId, !isFavorite) },
+                    modifier = Modifier.size(36.dp),
+                ) {
                     Icon(
-                        imageVector = icon,
+                        imageVector =
+                            if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                     )
                 }
             }
-        },
-    )
+        }
+    }
 }

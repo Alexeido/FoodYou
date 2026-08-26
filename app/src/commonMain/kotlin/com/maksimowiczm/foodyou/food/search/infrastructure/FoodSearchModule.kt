@@ -6,7 +6,10 @@ import com.maksimowiczm.foodyou.food.domain.repository.FoodSearchHistoryReposito
 import com.maksimowiczm.foodyou.food.search.domain.FoodRemoteMediatorFactoryAggregate
 import com.maksimowiczm.foodyou.food.search.domain.FoodSearchRepository
 import com.maksimowiczm.foodyou.food.search.domain.ProductRemoteMediatorFactory
+import com.maksimowiczm.foodyou.food.search.domain.CustomFoodSourceNetworkPagingSourceFactory
 import com.maksimowiczm.foodyou.food.search.domain.OpenFoodFactsNetworkPagingSourceFactory
+import com.maksimowiczm.foodyou.food.search.infrastructure.customsource.CustomFoodSourceNetworkPagingSourceFactoryImpl
+import com.maksimowiczm.foodyou.food.search.infrastructure.customsource.CustomFoodSourceRemoteMediatorFactory
 import com.maksimowiczm.foodyou.food.search.infrastructure.openfoodfacts.OpenFoodFactsNetworkPagingSourceFactoryImpl
 import com.maksimowiczm.foodyou.food.search.infrastructure.openfoodfacts.OpenFoodFactsRemoteMediatorFactory
 import com.maksimowiczm.foodyou.food.search.infrastructure.repository.DataStoreFoodSearchPreferencesRepository
@@ -30,8 +33,24 @@ fun Module.foodSearchInfrastructureModule() {
     factory { database.foodSearchDao }
     factory { database.usdaPagingKeyDao }
     factory { database.openFoodFactsPagingKeyDao }
+    factory { database.customFoodSourcePagingKeyDao }
 
     factoryOf(::OpenFoodFactsNetworkPagingSourceFactoryImpl).bind<OpenFoodFactsNetworkPagingSourceFactory>()
+    factory {
+            CustomFoodSourceNetworkPagingSourceFactoryImpl(
+                preferencesRepository = userPreferencesRepository(),
+                credentialsRepository = get(),
+                remoteDataSource = get(),
+                productRepository = get(),
+                foodHistoryRepository = get(),
+                transactionProvider = get(),
+                productMapper = get(),
+                remoteMapper = get(),
+                dateProvider = get(),
+                logger = get(),
+            )
+        }
+        .bind<CustomFoodSourceNetworkPagingSourceFactory>()
     factoryOf(::OpenFoodFactsRemoteMediatorFactory).bind<ProductRemoteMediatorFactory>()
     factory {
             USDARemoteMediatorFactory(
@@ -42,6 +61,22 @@ fun Module.foodSearchInfrastructureModule() {
                 remoteDataSource = get(),
                 pagingKeyDao = get(),
                 usdaMapper = get(),
+                remoteMapper = get(),
+                dateProvider = get(),
+                logger = get(),
+            )
+        }
+        .bind<ProductRemoteMediatorFactory>()
+    factory {
+            CustomFoodSourceRemoteMediatorFactory(
+                foodSearchPreferencesRepository = userPreferencesRepository(),
+                credentialsRepository = get(),
+                transactionProvider = get(),
+                productRepository = get(),
+                foodHistoryRepository = get(),
+                remoteDataSource = get(),
+                pagingKeyDao = get(),
+                productMapper = get(),
                 remoteMapper = get(),
                 dateProvider = get(),
                 logger = get(),

@@ -3,6 +3,7 @@ package com.maksimowiczm.foodyou.app.ui.food.search
 import androidx.compose.runtime.*
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.maksimowiczm.foodyou.common.domain.food.FoodSource
 import com.maksimowiczm.foodyou.food.search.domain.FoodSearch
 import kotlinx.coroutines.flow.Flow
 
@@ -12,6 +13,10 @@ internal data class FoodSearchUiState(
     val filter: FoodFilter,
     val recentSearches: List<String>,
     val favoritesCount: Int = 0,
+    /** Enabled remote (live) sources, in display order — the entries of the "Database" tab picker. */
+    val enabledRemoteSources: List<FoodSource.Type> = emptyList(),
+    /** The default database source for auto-jump on search/scan. */
+    val primarySource: FoodSource.Type? = null,
 ) {
     val currentSourceState: FoodSourceUiState?
         get() = sources[filter.source]

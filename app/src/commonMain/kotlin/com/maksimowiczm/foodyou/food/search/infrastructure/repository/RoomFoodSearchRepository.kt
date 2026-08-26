@@ -9,6 +9,7 @@ import com.maksimowiczm.foodyou.common.domain.food.FoodSource
 import com.maksimowiczm.foodyou.common.domain.food.NutrientValue.Companion.toNutrientValue
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFacts
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
+import com.maksimowiczm.foodyou.common.domain.measurement.MeasurementType
 import com.maksimowiczm.foodyou.common.domain.measurement.from
 import com.maksimowiczm.foodyou.common.domain.search.SearchQuery
 import com.maksimowiczm.foodyou.common.infrastructure.room.toEntity
@@ -18,11 +19,15 @@ import com.maksimowiczm.foodyou.food.search.domain.FoodSearchRepository
 import com.maksimowiczm.foodyou.food.search.domain.RemoteMediatorFactory
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.FoodSearch as RoomFoodSearch
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.FoodSearchDao
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+
+private val REMOTE_SEARCH_SOURCES =
+    setOf(FoodSource.Type.OpenFoodFacts, FoodSource.Type.USDA, FoodSource.Type.Custom)
 
 @OptIn(ExperimentalPagingApi::class)
 internal class RoomFoodSearchRepository(private val foodSearchDao: FoodSearchDao) :
@@ -39,10 +44,19 @@ internal class RoomFoodSearchRepository(private val foodSearchDao: FoodSearchDao
                 pagingSourceFactory = {
                     when (query) {
                         SearchQuery.Blank ->
-                            foodSearchDao.observeFood(
-                                source = source.toEntity(),
-                                excludedRecipeId = excludedRecipeId?.id,
-                            )
+                            // Remote database tabs, when empty, list what the user actually added
+                            // from that source (recency-ordered), not the whole cached mirror.
+                            if (source in REMOTE_SEARCH_SOURCES) {
+                                foodSearchDao.observeRecentFoodBySource(
+                                    source = source.toEntity(),
+                                    nowEpochSeconds = Clock.System.now().epochSeconds,
+                                )
+                            } else {
+                                foodSearchDao.observeFood(
+                                    source = source.toEntity(),
+                                    excludedRecipeId = excludedRecipeId?.id,
+                                )
+                            }
 
                         is SearchQuery.Text ->
                             foodSearchDao.observeFoodByQuery(
@@ -284,7 +298,12 @@ private val RoomFoodSearch.foodId: FoodId
 private val RoomFoodSearch.suggestedMeasurement
     get() =
         when {
-            measurementType != null && measurementValue != null ->
+            // Only reuse a stored suggestion when its unit still fits the food. Rows written before
+            // a product was marked liquid can carry grams, which then opens the food in a unit it
+            // can't be saved with.
+            measurementType != null &&
+                measurementValue != null &&
+                measurementType.fitsLiquid(isLiquid) ->
                 Measurement.from(measurementType, measurementValue)
 
             recipeId != null || servingWeight != null -> Measurement.Serving(1.0)
@@ -292,3 +311,15 @@ private val RoomFoodSearch.suggestedMeasurement
             isLiquid -> Measurement.Milliliter(100.0)
             else -> Measurement.Gram(100.0)
         }
+
+private fun MeasurementType.fitsLiquid(isLiquid: Boolean): Boolean =
+    when (this) {
+        MeasurementType.Gram,
+        MeasurementType.Ounce -> !isLiquid
+
+        MeasurementType.Milliliter,
+        MeasurementType.FluidOunce -> isLiquid
+
+        MeasurementType.Package,
+        MeasurementType.Serving -> true
+    }

@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Checkbox
@@ -29,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalAppConfig
+import com.maksimowiczm.foodyou.app.ui.database.externaldatabases.UpdateCustomFoodSourceDialog
 import com.maksimowiczm.foodyou.app.ui.database.externaldatabases.UpdateUsdaApiKeyDialog
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
@@ -177,6 +180,67 @@ fun UsdaPrivacyCard(
                         )
                     },
                     label = { Text(stringResource(Res.string.headline_api_key)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomFoodSourcePrivacyCard(
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showConfigureDialog by rememberSaveable { mutableStateOf(false) }
+    if (showConfigureDialog) {
+        UpdateCustomFoodSourceDialog(
+            onDismissRequest = { showConfigureDialog = false },
+            onSave = { showConfigureDialog = false },
+        )
+    }
+
+    PrivacyCard(
+        title = {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = Icons.Filled.Cloud, contentDescription = null)
+                }
+                Text(
+                    text = stringResource(Res.string.headline_custom_food_source),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Checkbox(checked = selected, onCheckedChange = null)
+                }
+            }
+        },
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+        onClick = { onSelectedChange(!selected) },
+    ) {
+        Column {
+            Text(
+                text = stringResource(Res.string.description_custom_food_source),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssistChip(
+                    onClick = { showConfigureDialog = true },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = null,
+                            modifier = Modifier.size(AssistChipDefaults.IconSize),
+                        )
+                    },
+                    label = { Text(stringResource(Res.string.action_configure)) },
                 )
             }
         }

@@ -274,6 +274,15 @@
     <string name="headline_external_databases">External databases</string>
     <string name="description_external_databases">Check out supported databases</string>
 
+    <string name="headline_custom_food_source">Custom database</string>
+    <string name="description_custom_food_source">Connect to your own self-hosted food database server</string>
+    <string name="headline_server_url">Server URL</string>
+    <string name="headline_username">Username</string>
+    <string name="headline_password">Password</string>
+    <string name="action_configure">Configure</string>
+    <string name="error_invalid_url">Please enter a valid URL</string>
+    <string name="error_field_required">This field is required</string>
+
     <string name="feature_manual_database_import">Manual database import</string>
 
     <string name="action_unpack" description="Unpack the recipe ingredients">Unpack</string>
@@ -518,4 +527,44 @@
     <string name="headline_experimental">Experimental</string>
 
     <string name="description_privacy_policy">See how your data is handled</string>
+
+    <!-- Search redesign + product identity/freshness + comidas recientes -->
+    <string name="action_refresh_from_source">Refresh from source</string>
+    <string name="neutral_product_refreshed">Product refreshed from source</string>
+    <string name="neutral_product_refresh_no_source">This product has no source to refresh from</string>
+    <string name="neutral_product_refresh_not_found">Not found on the source anymore</string>
+    <string name="error_product_refresh_unauthorized">The source rejected the credentials</string>
+    <string name="error_product_refresh_failed">Couldn't refresh. Check your connection.</string>
+    <string name="headline_source_barcode">Source barcode</string>
+    <string name="description_source_barcode">Identity on the server. Used to recognize this product and to refresh it. Not editable.</string>
+    <string name="headline_your_food_short" description="Short tab label for the user's own foods">Yours</string>
+    <string name="neutral_type_to_search_database">Type to search your database</string>
+    <string name="description_type_to_search_database">Your server is queried live as you type or scan — no piles of old results.</string>
+    <string name="headline_primary_source">Primary source</string>
+    <string name="action_add_meal_block" description="Add a whole past meal at once">Add</string>
+    <string name="neutral_added" description="A past meal was added">Added</string>
+    <string name="headline_recent_meals">Recent meals</string>
+    <string name="headline_recent_foods">Recent foods</string>
+    <string name="neutral_no_created_foods">You haven't created any foods yet. Tap + to add one.</string>
+    <string name="neutral_no_favorites">No favorites yet. Tap the heart on a food to save it.</string>
+    <string name="neutral_nothing_added_here">Nothing added from here yet. Search to add something.</string>
+    <string name="action_see_all">See all</string>
+    <string name="description_values_for" description="Tells which amount the shown nutrition values refer to, e.g. 'Values for 240 g'">Values for %1$s</string>
+    <string name="headline_choose_icon">Choose an icon</string>
+    <string name="headline_icons_material">Icons</string>
+    <string name="headline_icons_emoji">Emoji</string>
+    <string name="action_choose_icon">Choose icon</string>
+    <string name="headline_goals_card_style">Card style</string>
+    <string name="description_goals_card_style">How the daily goal card shows your macros</string>
+    <string name="goals_style_bars">Thick bars</string>
+    <string name="goals_style_columns">Columns</string>
+    <string name="goals_style_ring">Ring</string>
+    <string name="goals_style_arc">Arc</string>
+    <string name="goals_style_stacked">Stacked</string>
+    <string name="goals_style_numbers">Figures only</string>
+    <string name="goals_style_horizontal_bars">Horizontal bars</string>
+    <string name="headline_figure_value">Centre of the figure</string>
+    <string name="description_figure_value">What the ring or arc shows in the middle</string>
+    <string name="figure_value_percentage">Percentage</string>
+    <string name="figure_value_energy">Calories</string>
 </resources>

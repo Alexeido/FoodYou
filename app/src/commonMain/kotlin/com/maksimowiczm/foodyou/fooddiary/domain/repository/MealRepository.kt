@@ -9,11 +9,22 @@ interface MealRepository {
 
     fun observeMeals(): Flow<List<Meal>>
 
-    suspend fun insertMealWithLastRank(name: String, from: LocalTime, to: LocalTime)
+    suspend fun insertMealWithLastRank(
+        name: String,
+        from: LocalTime,
+        to: LocalTime,
+        icon: String? = null,
+    )
 
     suspend fun deleteMeal(mealId: Long)
 
-    suspend fun updateMeal(id: Long, name: String, from: LocalTime, to: LocalTime)
+    suspend fun updateMeal(
+        id: Long,
+        name: String,
+        from: LocalTime,
+        to: LocalTime,
+        icon: String? = null,
+    )
 
     suspend fun reorderMeals(order: List<Long>)
 }

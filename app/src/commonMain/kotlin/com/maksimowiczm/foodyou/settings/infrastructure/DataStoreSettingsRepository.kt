@@ -13,6 +13,8 @@ import com.maksimowiczm.foodyou.settings.domain.entity.AppLaunchInfo
 import com.maksimowiczm.foodyou.settings.domain.entity.EnergyFormat
 import com.maksimowiczm.foodyou.settings.domain.entity.HomeCard
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsCardStyle
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsFigureValue
 import com.maksimowiczm.foodyou.settings.domain.entity.Settings
 import kotlin.time.Instant
 
@@ -27,6 +29,14 @@ internal class DataStoreSettingsRepository(dataStore: DataStore<Preferences>) :
             secureScreen = this[SettingsPreferencesKeys.secureScreen] ?: false,
             homeCardOrder = this.getHomeCardOrder(SettingsPreferencesKeys.homeCardOrder),
             expandGoalCard = this[SettingsPreferencesKeys.expandGoalCard] ?: true,
+            goalsCardStyle =
+                this[SettingsPreferencesKeys.goalsCardStyle]?.let { name ->
+                    GoalsCardStyle.entries.firstOrNull { it.name == name }
+                } ?: GoalsCardStyle.Bars,
+            goalsFigureValue =
+                this[SettingsPreferencesKeys.goalsFigureValue]?.let { name ->
+                    GoalsFigureValue.entries.firstOrNull { it.name == name }
+                } ?: GoalsFigureValue.Percentage,
             onboardingFinished = this[SettingsPreferencesKeys.onboardingFinished] ?: false,
             energyFormat = this.getEnergyFormat(SettingsPreferencesKeys.energyFormat),
             appLaunchInfo = this.getAppLaunchInfo(),
@@ -40,6 +50,8 @@ internal class DataStoreSettingsRepository(dataStore: DataStore<Preferences>) :
         this[SettingsPreferencesKeys.secureScreen] = updated.secureScreen
         setHomeCardOrder(SettingsPreferencesKeys.homeCardOrder, updated.homeCardOrder)
         this[SettingsPreferencesKeys.expandGoalCard] = updated.expandGoalCard
+        this[SettingsPreferencesKeys.goalsCardStyle] = updated.goalsCardStyle.name
+        this[SettingsPreferencesKeys.goalsFigureValue] = updated.goalsFigureValue.name
         this[SettingsPreferencesKeys.onboardingFinished] = updated.onboardingFinished
         setEnergyFormat(SettingsPreferencesKeys.energyFormat, updated.energyFormat)
         setAppLaunchInfo(updated.appLaunchInfo)
@@ -131,6 +143,8 @@ private object SettingsPreferencesKeys {
     val secureScreen = booleanPreferencesKey("settings:secureScreen")
     val homeCardOrder = stringPreferencesKey("settings:homeCardOrder")
     val expandGoalCard = booleanPreferencesKey("settings:expandGoalCard")
+    val goalsCardStyle = stringPreferencesKey("settings:goalsCardStyle")
+    val goalsFigureValue = stringPreferencesKey("settings:goalsFigureValue")
     val onboardingFinished = booleanPreferencesKey("settings:onboardingFinished")
     val energyFormat = intPreferencesKey("settings:energyFormat")
     val firstLaunchEpoch = longPreferencesKey("first_launch_epoch")

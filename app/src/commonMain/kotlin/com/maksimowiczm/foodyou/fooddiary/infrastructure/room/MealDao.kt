@@ -35,7 +35,8 @@ abstract class MealDao {
             fromHour = :fromHour,
             fromMinute = :fromMinute,
             toHour = :toHour,
-            toMinute = :toMinute
+            toMinute = :toMinute,
+            icon = :icon
         WHERE id = :id
         """
     )
@@ -46,6 +47,7 @@ abstract class MealDao {
         fromMinute: Int,
         toHour: Int,
         toMinute: Int,
+        icon: String?,
     )
 
     @Transaction

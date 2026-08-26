@@ -1,30 +1,17 @@
 package com.maksimowiczm.foodyou.app.ui.food.search
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NorthWest
-import androidx.compose.material3.ExpandedFullScreenSearchBar
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,165 +19,73 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
+/** Uppercase, letter-spaced section header matching the design ("RECENT MEALS", "RECENT FOODS"). */
 @Composable
-internal fun FoodSearchView(
-    appState: FoodSearchAppState,
-    uiState: FoodSearchUiState,
-    onFill: (String) -> Unit,
-    onSearch: (String?) -> Unit,
-    onSource: (FoodFilter.Source) -> Unit,
-    inputField: @Composable () -> Unit,
+internal fun SearchSectionHeader(
+    text: String,
+    modifier: Modifier = Modifier,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
-    val filters = uiState.sources.filterValues { state -> state.shouldShowFilter }
-
-    ExpandedFullScreenSearchBar(state = appState.searchBarState, inputField = inputField) {
-        LazyColumn {
-            items(uiState.recentSearches.take(3)) {
-                FoodSearchItem(
-                    search = it,
-                    onFill = { onFill(it) },
-                    modifier = Modifier.clickable { onSearch(it) },
-                )
-            }
-
-            item {
-                if (uiState.recentSearches.isNotEmpty()) {
-                    HorizontalDivider()
-                }
-
-                Column(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.headline_filters),
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp),
-                    ) {
-                        items(filters.toList()) { (source, _) ->
-                            DatabaseFilterIconButton(
-                                selected = uiState.filter.source == source,
-                                onClick = { onSource(source) },
-                                logo = { source.Icon() },
-                                label = {
-                                    Text(
-                                        text = source.stringResource(),
-                                        textAlign = TextAlign.Center,
-                                    )
-                                },
-                            )
-                        }
-                    }
-                }
-
-                HorizontalDivider()
-            }
-
-            items(uiState.recentSearches.drop(3)) {
-                FoodSearchItem(
-                    search = it,
-                    onFill = { onFill(it) },
-                    modifier = Modifier.clickable { onSearch(it) },
-                )
-            }
-        }
+    Row(
+        modifier = modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            letterSpacing = 0.6.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        trailing?.invoke()
     }
 }
 
+/**
+ * Inline recent-search suggestions, anchored under the search bar. Unlike the old full-screen
+ * search surface, this does not cover the screen — it's a small card that appears while the field
+ * is focused and empty.
+ */
 @Composable
-private fun FoodSearchItem(search: String, onFill: () -> Unit, modifier: Modifier = Modifier) {
-    ListItem(
-        modifier = modifier,
-        headlineContent = { Text(search) },
-        leadingContent = { Icon(imageVector = Icons.Outlined.History, contentDescription = null) },
-        trailingContent = {
-            IconButton(onFill) {
-                Icon(
-                    imageVector = Icons.Outlined.NorthWest,
-                    contentDescription = stringResource(Res.string.action_insert_suggested_search),
-                )
-            }
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-    )
-}
-
-@Composable
-private fun DatabaseFilterIconButton(
-    selected: Boolean,
-    onClick: () -> Unit,
-    logo: @Composable () -> Unit,
-    label: @Composable () -> Unit,
+internal fun RecentSearchSuggestions(
+    searches: List<String>,
+    onFill: (String) -> Unit,
+    onSearch: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
+    if (searches.isEmpty()) return
 
-    val containerColor by
-        animateColorAsState(
-            targetValue =
-                if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
-        )
-    val contentColor by
-        animateColorAsState(
-            targetValue =
-                if (selected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-        )
-
-    val labelColor by
-        animateColorAsState(
-            targetValue =
-                if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-        )
-
-    Column(
-        modifier =
-            modifier
-                .clickable(
-                    onClick = onClick,
-                    indication = null,
-                    interactionSource = interactionSource,
-                )
-                .widthIn(min = 64.dp, max = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 2.dp,
     ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier.size(48.dp),
-            shape = CircleShape,
-            color = containerColor,
-            contentColor = contentColor,
-            interactionSource = interactionSource,
-        ) {
-            Box(modifier = Modifier.padding(12.dp), contentAlignment = Alignment.Center) { logo() }
-        }
-        CompositionLocalProvider(
-            LocalTextStyle provides MaterialTheme.typography.labelMedium,
-            LocalContentColor provides labelColor,
-        ) {
-            label()
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            searches.take(5).forEach { search ->
+                ListItem(
+                    modifier = Modifier.clickable { onSearch(search) },
+                    headlineContent = { Text(search) },
+                    leadingContent = {
+                        Icon(imageVector = Icons.Outlined.History, contentDescription = null)
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { onFill(search) }) {
+                            Icon(
+                                imageVector = Icons.Outlined.NorthWest,
+                                contentDescription =
+                                    stringResource(Res.string.action_insert_suggested_search),
+                            )
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
         }
     }
 }

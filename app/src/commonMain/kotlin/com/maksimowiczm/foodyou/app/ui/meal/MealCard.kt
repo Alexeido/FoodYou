@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -74,6 +75,32 @@ internal fun MealCard(
                 onDelete()
             },
         )
+    }
+
+    var showIconPicker by rememberSaveable { mutableStateOf(false) }
+    if (showIconPicker) {
+        MealIconPickerDialog(
+            current = state.icon,
+            onPick = {
+                state.icon = it
+                showIconPicker = false
+            },
+            onDismiss = { showIconPicker = false },
+        )
+    }
+
+    val iconPickerButton: @Composable () -> Unit = {
+        Surface(
+            onClick = { showIconPicker = true },
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(40.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                MealSectionIcon(icon = state.icon, modifier = Modifier.size(22.dp))
+            }
+        }
     }
 
     val nameInput: @Composable RowScope.() -> Unit = {
@@ -303,9 +330,10 @@ internal fun MealCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                nameInput()
+                iconPickerButton()
+                Box(modifier = Modifier.weight(1f)) { Row { nameInput() } }
                 iconButton()
             }
 

@@ -1,5 +1,7 @@
 package com.maksimowiczm.foodyou.app.ui.home.goals
 
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsCardStyle
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsFigureValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFactsField
@@ -41,6 +43,30 @@ internal class GoalsViewModel(
             started = SharingStarted.WhileSubscribed(2_000),
             initialValue = runBlocking { _expandGoalsCard.first() },
         )
+
+    private val _goalsCardStyle = settingsRepository.observe().map { it.goalsCardStyle }
+    val goalsCardStyle: StateFlow<GoalsCardStyle> =
+        _goalsCardStyle.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(2_000),
+            initialValue = runBlocking { _goalsCardStyle.first() },
+        )
+
+    fun setGoalsCardStyle(style: GoalsCardStyle) {
+        viewModelScope.launch { settingsRepository.update { copy(goalsCardStyle = style) } }
+    }
+
+    private val _goalsFigureValue = settingsRepository.observe().map { it.goalsFigureValue }
+    val goalsFigureValue: StateFlow<GoalsFigureValue> =
+        _goalsFigureValue.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(2_000),
+            initialValue = runBlocking { _goalsFigureValue.first() },
+        )
+
+    fun setGoalsFigureValue(value: GoalsFigureValue) {
+        viewModelScope.launch { settingsRepository.update { copy(goalsFigureValue = value) } }
+    }
 
     fun setExpandGoalsCard(expand: Boolean) {
         viewModelScope.launch { settingsRepository.update { copy(expandGoalCard = expand) } }

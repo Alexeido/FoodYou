@@ -39,7 +39,10 @@ import com.maksimowiczm.foodyou.app.ui.common.utility.LocalNutrientsOrder
 import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCard
 import com.maksimowiczm.foodyou.app.ui.home.shared.HomeState
 import com.maksimowiczm.foodyou.common.compose.extension.toDp
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsCardStyle
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsFigureValue
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
+import kotlin.math.roundToInt
 import com.valentinilk.shimmer.Shimmer
 import com.valentinilk.shimmer.shimmer
 import foodyou.app.generated.resources.*
@@ -58,6 +61,8 @@ internal fun GoalsCard(
 
     val model = viewModel.model.collectAsStateWithLifecycle().value
     val expand by viewModel.expandGoalsCard.collectAsStateWithLifecycle()
+    val style by viewModel.goalsCardStyle.collectAsStateWithLifecycle()
+    val figureValue by viewModel.goalsFigureValue.collectAsStateWithLifecycle()
 
     if (model == null) {
         GoalsCardSkeleton(
@@ -70,6 +75,8 @@ internal fun GoalsCard(
     } else {
         GoalsCard(
             expand = expand,
+            style = style,
+            figureValue = figureValue,
             energy = model.energy,
             energyGoal = model.energyGoal,
             proteins = model.proteins,
@@ -89,6 +96,8 @@ internal fun GoalsCard(
 internal fun GoalsCard(
     expand: Boolean,
     energy: Int,
+    style: GoalsCardStyle = GoalsCardStyle.Bars,
+    figureValue: GoalsFigureValue = GoalsFigureValue.Percentage,
     energyGoal: Int,
     proteins: Int,
     proteinsGoal: Int,
@@ -126,6 +135,12 @@ internal fun GoalsCard(
             GoalsCardContent(
                 energy = energy,
                 energyGoal = energyGoal,
+                style = style,
+                figureValue = figureValue,
+                showMacroValues = !expand,
+                proteinsGoal = proteinsGoal,
+                carbohydratesGoal = carbohydratesGoal,
+                fatsGoal = fatsGoal,
                 proteinsPercentage = proteinsPercentage,
                 proteinsGrams = proteins,
                 carbsPercentage = carbsPercentage,
@@ -162,6 +177,12 @@ internal fun GoalsCard(
 private fun GoalsCardContent(
     energy: Int,
     energyGoal: Int,
+    style: GoalsCardStyle,
+    figureValue: GoalsFigureValue,
+    showMacroValues: Boolean,
+    proteinsGoal: Int,
+    carbohydratesGoal: Int,
+    fatsGoal: Int,
     proteinsPercentage: Float,
     proteinsGrams: Int,
     carbsPercentage: Float,
@@ -202,76 +223,149 @@ private fun GoalsCardContent(
 
     val left = remember(energy, energyGoal) { energyGoal - energy }
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text = caloriesString, style = typography.headlineLargeEmphasized)
+    val figureText =
+        when (figureValue) {
+            GoalsFigureValue.Percentage -> {
+                val ratio = energy.toFloat() / energyGoal.coerceAtLeast(1)
+                "${(ratio.coerceIn(0f, 1f) * 100).roundToInt()}%"
+            }
+            GoalsFigureValue.Energy -> energyFormatter.formatEnergy(energy, withSuffix = false)
+        }
 
-            when {
-                left > 0 ->
-                    Text(
-                        text = energyFormatter.energyLeft(left),
-                        color = MaterialTheme.colorScheme.outline,
-                        style = MaterialTheme.typography.bodyMediumEmphasized,
+    val macros =
+        nutrientsOrder.mapNotNull { field ->
+            when (field) {
+                NutrientsOrder.Proteins ->
+                    MacroSlice(
+                        label = stringResource(Res.string.nutriment_proteins_short),
+                        grams = proteinsGrams,
+                        goalGrams = proteinsGoal,
+                        progress = proteinsPercentage,
+                        color = nutrientsPalette.proteinsOnSurfaceContainer,
                     )
 
-                left == 0 ->
-                    Text(
-                        text = stringResource(Res.string.positive_goal_reached),
-                        color = MaterialTheme.colorScheme.outline,
-                        style = MaterialTheme.typography.bodyMediumEmphasized,
+                NutrientsOrder.Fats ->
+                    MacroSlice(
+                        label = stringResource(Res.string.nutriment_fats_short),
+                        grams = fatsGrams,
+                        goalGrams = fatsGoal,
+                        progress = fatsPercentage,
+                        color = nutrientsPalette.fatsOnSurfaceContainer,
                     )
 
-                else ->
-                    Text(
-                        text = energyFormatter.energyExceeded(-left),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMediumEmphasized,
+                NutrientsOrder.Carbohydrates ->
+                    MacroSlice(
+                        label = stringResource(Res.string.nutriment_carbohydrates_short),
+                        grams = carbohydratesGrams,
+                        goalGrams = carbohydratesGoal,
+                        progress = carbsPercentage,
+                        color = nutrientsPalette.carbohydratesOnSurfaceContainer,
                     )
+
+                NutrientsOrder.Other,
+                NutrientsOrder.Vitamins,
+                NutrientsOrder.Minerals -> null
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            nutrientsOrder.forEach { field ->
-                when (field) {
-                    NutrientsOrder.Proteins ->
-                        MacroBarWithLabel(
-                            shortLabel = stringResource(Res.string.nutriment_proteins_short),
-                            grams = proteinsGrams,
-                            progress = proteinsPercentage,
-                            containerColor =
-                                nutrientsPalette.proteinsOnSurfaceContainer.copy(alpha = .25f),
-                            barColor = nutrientsPalette.proteinsOnSurfaceContainer,
-                        )
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // The calorie block yields width so a wide macro figure can never push itself off the
+            // card — that was the carbohydrates column running past the edge.
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(text = caloriesString, style = typography.headlineLargeEmphasized)
 
-                    NutrientsOrder.Fats ->
-                        MacroBarWithLabel(
-                            shortLabel = stringResource(Res.string.nutriment_fats_short),
-                            grams = fatsGrams,
-                            progress = fatsPercentage,
-                            containerColor =
-                                nutrientsPalette.fatsOnSurfaceContainer.copy(alpha = .25f),
-                            barColor = nutrientsPalette.fatsOnSurfaceContainer,
-                        )
+                if (style.showsEnergyLeft) {
+                    when {
+                        left > 0 ->
+                            Text(
+                                text = energyFormatter.energyLeft(left),
+                                color = MaterialTheme.colorScheme.outline,
+                                style = MaterialTheme.typography.bodyMediumEmphasized,
+                            )
 
-                    NutrientsOrder.Carbohydrates ->
-                        MacroBarWithLabel(
-                            shortLabel = stringResource(Res.string.nutriment_carbohydrates_short),
-                            grams = carbohydratesGrams,
-                            progress = carbsPercentage,
-                            containerColor =
-                                nutrientsPalette.carbohydratesOnSurfaceContainer.copy(alpha = .25f),
-                            barColor = nutrientsPalette.carbohydratesOnSurfaceContainer,
-                        )
+                        left == 0 ->
+                            Text(
+                                text = stringResource(Res.string.positive_goal_reached),
+                                color = MaterialTheme.colorScheme.outline,
+                                style = MaterialTheme.typography.bodyMediumEmphasized,
+                            )
 
-                    NutrientsOrder.Other,
-                    NutrientsOrder.Vitamins,
-                    NutrientsOrder.Minerals -> Unit
+                        else ->
+                            Text(
+                                text = energyFormatter.energyExceeded(-left),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMediumEmphasized,
+                            )
+                    }
+                }
+
+                // With the detail section open those grams are printed just below, so the compact
+                // figure drops its numbers rather than stating them twice.
+                if (style.showsInlineMacros && showMacroValues) {
+                    InlineMacros(macros)
                 }
             }
+
+            Spacer(Modifier.width(12.dp))
+
+            when (style) {
+                GoalsCardStyle.Bars ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        macros.forEach { macro ->
+                            MacroBarWithLabel(
+                                shortLabel = macro.label,
+                                grams = macro.grams,
+                                showValue = showMacroValues,
+                                progress = macro.progress,
+                                containerColor = macro.color.copy(alpha = .3f),
+                                barColor = macro.color,
+                            )
+                        }
+                    }
+
+                GoalsCardStyle.Columns -> MacroColumns(macros, showValues = showMacroValues)
+
+                GoalsCardStyle.Ring ->
+                    EnergyRing(
+                        progress = energy.toFloat() / energyGoal.coerceAtLeast(1),
+                        centerText = figureText,
+                    )
+
+                GoalsCardStyle.Arc ->
+                    EnergyArc(
+                        progress = energy.toFloat() / energyGoal.coerceAtLeast(1),
+                        centerText = figureText,
+                    )
+
+                GoalsCardStyle.Stacked -> MacroLegend(macros, showValues = showMacroValues)
+
+                // Figures-only has nothing left to draw once the numbers move to the detail
+                // section, so it steps aside instead of leaving an empty gap.
+                GoalsCardStyle.Numbers -> if (showMacroValues) MacroNumbers(macros)
+
+                GoalsCardStyle.HorizontalBars ->
+                    MacroHorizontalBars(macros, showValues = showMacroValues)
+            }
+        }
+
+        if (style == GoalsCardStyle.Stacked) {
+            Spacer(Modifier.height(12.dp))
+            StackedMacroBar(
+                proteins = proteinsGrams,
+                carbohydrates = carbohydratesGrams,
+                fats = fatsGrams,
+                proteinsColor = nutrientsPalette.proteinsOnSurfaceContainer,
+                carbohydratesColor = nutrientsPalette.carbohydratesOnSurfaceContainer,
+                fatsColor = nutrientsPalette.fatsOnSurfaceContainer,
+            )
         }
     }
 }
@@ -290,16 +384,9 @@ private fun MacroBar(
     Canvas(
         modifier =
             modifier
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 8.dp,
-                        topEnd = 8.dp,
-                        bottomStart = 4.dp,
-                        bottomEnd = 4.dp,
-                    )
-                )
+                .clip(RoundedCornerShape(3.dp))
                 .fillMaxHeight()
-                .width(24.dp)
+                .width(6.dp)
     ) {
         if (overflowFraction > 0f) {
             val barHeight = 1 - overflowFraction
@@ -334,6 +421,7 @@ private fun MacroBarWithLabel(
     shortLabel: String,
     grams: Int,
     progress: Float,
+    showValue: Boolean = true,
     containerColor: Color,
     barColor: Color,
     modifier: Modifier = Modifier,
@@ -344,7 +432,7 @@ private fun MacroBarWithLabel(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Box(
-            modifier = Modifier.height(64.dp),
+            modifier = Modifier.height(48.dp),
             contentAlignment = Alignment.BottomCenter,
         ) {
             MacroBar(
@@ -352,18 +440,20 @@ private fun MacroBarWithLabel(
                 containerColor = containerColor,
                 barColor = barColor,
             )
-            Text(
-                text = shortLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(bottom = 2.dp),
-            )
         }
+        // Label sits under the track, not inside it — a 6dp bar has no room for text.
         Text(
-            text = "$grams",
+            text = shortLabel,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
         )
+        if (showValue) {
+            Text(
+                text = "$grams",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

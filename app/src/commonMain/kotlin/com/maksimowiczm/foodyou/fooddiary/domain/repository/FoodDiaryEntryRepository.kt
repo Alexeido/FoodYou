@@ -4,6 +4,7 @@ import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFood
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.RecentMealRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -12,6 +13,9 @@ interface FoodDiaryEntryRepository {
     fun observe(id: FoodDiaryEntryId): Flow<FoodDiaryEntry?>
 
     fun observeAll(mealId: Long, date: LocalDate): Flow<List<FoodDiaryEntry>>
+
+    /** Recently logged meals as (mealId, date) references, most recently touched first. */
+    fun observeRecentMealRefs(limit: Int): Flow<List<RecentMealRef>>
 
     suspend fun insert(
         measurement: Measurement,

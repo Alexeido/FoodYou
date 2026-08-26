@@ -4,4 +4,5 @@ interface FoodSearchDatabase {
     val foodSearchDao: FoodSearchDao
     val usdaPagingKeyDao: USDAPagingKeyDao
     val openFoodFactsPagingKeyDao: OpenFoodFactsPagingKeyDao
+    val customFoodSourcePagingKeyDao: CustomFoodSourcePagingKeyDao
 }

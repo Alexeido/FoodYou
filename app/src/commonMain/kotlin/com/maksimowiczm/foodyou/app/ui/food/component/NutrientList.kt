@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Icon
@@ -34,30 +36,104 @@ import com.maksimowiczm.foodyou.common.domain.food.NutrientValue
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFacts
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
 import foodyou.app.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * @param macrosCollapsible When true, energy and the three macronutrients are wrapped in a section
+ *   that starts collapsed — for screens that already show those four figures above the list (the
+ *   add/measure screen), so the same numbers aren't printed twice. Off by default so every other
+ *   caller keeps the full, always-expanded list.
+ */
 @Composable
 fun NutrientList(
     facts: NutritionFacts,
     modifier: Modifier = Modifier,
+    macrosCollapsible: Boolean = false,
+    flatten: Boolean = false,
     incompleteValue: (NutrientValue.Incomplete) -> (@Composable () -> Unit) =
         NutrientListDefaults::incompleteValue,
 ) {
     val order = LocalNutrientsOrder.current
 
+    // The macro rows are group *titles* with their sub-nutrients nested underneath, so they can't
+    // simply be hidden — collapsing the whole block keeps saturated fats, sugars and friends
+    // reachable under a heading that explains them.
+    val macros: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Energy(facts, incompleteValue)
+
+            order.forEach {
+                when (it) {
+                    NutrientsOrder.Proteins -> Proteins(facts, incompleteValue)
+                    NutrientsOrder.Fats -> Fats(facts, incompleteValue)
+                    NutrientsOrder.Carbohydrates -> Carbohydrates(facts, incompleteValue)
+                    NutrientsOrder.Other,
+                    NutrientsOrder.Vitamins,
+                    NutrientsOrder.Minerals -> Unit
+                }
+            }
+        }
+    }
+
+    if (flatten) {
+        // No macro rows at all — the caller shows those four figures above the list.
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Other(facts, incompleteValue, includeMacroSubNutrients = true)
+            Vitamins(facts, incompleteValue)
+            Minerals(facts, incompleteValue)
+        }
+        return
+    }
+
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Energy(facts, incompleteValue)
+        if (macrosCollapsible) {
+            CollapsibleSection(title = stringResource(Res.string.headline_macronutrients)) {
+                macros()
+            }
+        } else {
+            macros()
+        }
 
         order.forEach {
             when (it) {
-                NutrientsOrder.Proteins -> Proteins(facts, incompleteValue)
-                NutrientsOrder.Fats -> Fats(facts, incompleteValue)
-                NutrientsOrder.Carbohydrates -> Carbohydrates(facts, incompleteValue)
                 NutrientsOrder.Other -> Other(facts, incompleteValue)
                 NutrientsOrder.Vitamins -> Vitamins(facts, incompleteValue)
                 NutrientsOrder.Minerals -> Minerals(facts, incompleteValue)
+                NutrientsOrder.Proteins,
+                NutrientsOrder.Fats,
+                NutrientsOrder.Carbohydrates -> Unit
             }
         }
+    }
+}
+
+/** Collapsed-by-default header + body, matching the Other/Vitamins/Minerals sections below. */
+@Composable
+private fun CollapsibleSection(title: String, content: @Composable () -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector =
+                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        AnimatedVisibility(visible = expanded) { content() }
     }
 }
 
@@ -234,25 +310,81 @@ private fun Other(
     incompleteValue: (NutrientValue.Incomplete) -> (@Composable () -> Unit),
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(8.dp),
+    includeMacroSubNutrients: Boolean = false,
 ) {
     val mg = stringResource(Res.string.unit_milligram_short)
 
+    // In flat mode the list carries every sub-nutrient, so a wall of zeroes is the main thing
+    // making it long: an absent row already reads as "none". Sugars, added sugars and saturated
+    // fats are the exception — those are worth confirming as zero, so they are always shown, and
+    // always in that order, ahead of the value-sorted remainder.
+    @Composable
+    fun gramRow(label: StringResource, value: NutrientValue): @Composable () -> Unit = {
+        Nutrient(
+            label = { Text(stringResource(label)) },
+            value = { NutrientDisplay(value, incompleteValue) },
+            contentPadding = contentPadding,
+        )
+    }
+
+    val pinned =
+        if (!includeMacroSubNutrients) {
+            emptyList()
+        } else {
+            buildList {
+                listOf(
+                        Res.string.nutriment_sugars to facts.sugars,
+                        Res.string.nutriment_added_sugars to facts.addedSugars,
+                        Res.string.nutriment_saturated_fats to facts.saturatedFats,
+                    )
+                    .forEach { (label, value) ->
+                        if (value.hasValue()) add(gramRow(label, value))
+                    }
+                // Trans fats ride along with saturated fats, but only when there are any.
+                if (facts.transFats.hasValue() && facts.transFats.isNotZero()) {
+                    add(gramRow(Res.string.nutriment_trans_fats, facts.transFats))
+                }
+            }
+        }
+
     val entries = buildList {
-        if (facts.salt.hasValue()) add(NutrientEntry(facts.salt.sortableValue()) {
+        if (includeMacroSubNutrients) {
+            val grams =
+                listOf(
+                    Res.string.nutriment_monounsaturated_fats to facts.monounsaturatedFats,
+                    Res.string.nutriment_polyunsaturated_fats to facts.polyunsaturatedFats,
+                    Res.string.nutriment_omega_3 to facts.omega3,
+                    Res.string.nutriment_omega_6 to facts.omega6,
+                    Res.string.nutriment_fiber to facts.dietaryFiber,
+                    Res.string.nutriment_soluble_fiber to facts.solubleFiber,
+                    Res.string.nutriment_insoluble_fiber to facts.insolubleFiber,
+                )
+
+            grams.forEach { (label, value) ->
+                if (value.hasValue() && value.isNotZero()) {
+                    add(NutrientEntry(value.sortableValue(), gramRow(label, value)))
+                }
+            }
+        }
+
+        fun keep(value: NutrientValue) =
+            value.hasValue() && (!includeMacroSubNutrients || value.isNotZero())
+
+        if (keep(facts.salt)) add(NutrientEntry(facts.salt.sortableValue()) {
             Nutrient(
                 label = { Text(stringResource(Res.string.nutriment_salt)) },
                 value = { NutrientDisplay(facts.salt, incompleteValue) },
                 contentPadding = contentPadding,
             )
         })
-        if (facts.cholesterol.hasValue()) add(NutrientEntry(facts.cholesterol.sortableValue()) {
+        if (keep(facts.cholesterol)) add(NutrientEntry(facts.cholesterol.sortableValue()) {
             Nutrient(
                 label = { Text(stringResource(Res.string.nutriment_cholesterol)) },
                 value = { NutrientDisplay(facts.cholesterol * 1_000.0, incompleteValue, mg) },
                 contentPadding = contentPadding,
             )
         })
-        if (facts.caffeine.hasValue()) add(NutrientEntry(facts.caffeine.sortableValue()) {
+        if (keep(facts.caffeine)) add(NutrientEntry(facts.caffeine.sortableValue()) {
             Nutrient(
                 label = { Text(stringResource(Res.string.nutriment_caffeine)) },
                 value = { NutrientDisplay(facts.caffeine * 1_000.0, incompleteValue, mg) },
@@ -261,7 +393,7 @@ private fun Other(
         })
     }.sortedByDescending { it.sortKey }
 
-    if (entries.isEmpty()) return
+    if (pinned.isEmpty() && entries.isEmpty()) return
 
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -284,10 +416,16 @@ private fun Other(
         }
 
         AnimatedVisibility(visible = expanded) {
-            Column { entries.forEach { it.content() } }
+            Column {
+                pinned.forEach { it() }
+                entries.forEach { it.content() }
+            }
         }
     }
 }
+
+/** A nutrient reported as exactly zero — worth hiding once every sub-nutrient is on one list. */
+private fun NutrientValue.isNotZero() = (value ?: 0.0) != 0.0
 
 @Composable
 private fun Vitamins(

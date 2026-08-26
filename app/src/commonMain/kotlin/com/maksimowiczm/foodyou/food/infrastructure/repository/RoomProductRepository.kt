@@ -2,6 +2,7 @@ package com.maksimowiczm.foodyou.food.infrastructure.repository
 
 import com.maksimowiczm.foodyou.common.domain.food.FoodSource
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFacts
+import com.maksimowiczm.foodyou.common.infrastructure.room.FoodSourceType
 import com.maksimowiczm.foodyou.common.infrastructure.room.toDomain
 import com.maksimowiczm.foodyou.common.infrastructure.room.toEntity
 import com.maksimowiczm.foodyou.common.infrastructure.room.toEntityNutrients
@@ -9,6 +10,7 @@ import com.maksimowiczm.foodyou.common.infrastructure.room.toNutritionFacts
 import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.entity.Product
 import com.maksimowiczm.foodyou.food.domain.repository.ProductRepository
+import com.maksimowiczm.foodyou.food.domain.repository.ProductUpsertResult
 import com.maksimowiczm.foodyou.food.infrastructure.room.ProductDao
 import com.maksimowiczm.foodyou.food.infrastructure.room.ProductEntity
 import kotlinx.coroutines.flow.Flow
@@ -75,6 +77,9 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
                 name = name,
                 brand = brand,
                 barcode = barcode,
+                // Remote inserts anchor identity on the source EAN so re-search dedups correctly
+                // even after the user overrides the visible barcode.
+                sourceBarcode = barcode,
                 note = note,
                 isLiquid = isLiquid,
                 packageWeight = packageWeight,
@@ -86,6 +91,37 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
         return productDao.insertUniqueProduct(product.toEntity())?.let(FoodId::Product)
     }
 
+    override suspend fun insertOrRefreshProduct(
+        name: String,
+        brand: String?,
+        barcode: String?,
+        note: String?,
+        isLiquid: Boolean,
+        packageWeight: Double?,
+        servingWeight: Double?,
+        source: FoodSource,
+        nutritionFacts: NutritionFacts,
+        categories: List<String>?,
+    ): ProductUpsertResult {
+        val product =
+            Product(
+                id = FoodId.Product(0),
+                name = name,
+                brand = brand,
+                barcode = barcode,
+                sourceBarcode = barcode,
+                note = note,
+                isLiquid = isLiquid,
+                packageWeight = packageWeight,
+                servingWeight = servingWeight,
+                source = source,
+                nutritionFacts = nutritionFacts,
+                categories = categories,
+            )
+        val upsert = productDao.insertOrRefreshProduct(product.toEntity())
+        return ProductUpsertResult(id = FoodId.Product(upsert.id), created = upsert.created)
+    }
+
     override suspend fun updateProduct(product: Product) {
         productDao.updateProduct(product.toEntity())
     }
@@ -93,6 +129,15 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
     override suspend fun updateFavorite(productId: FoodId.Product, isFavorite: Boolean) {
         productDao.updateFavorite(productId.id, isFavorite)
     }
+
+    override suspend fun purgeStaleProducts(): Int =
+        productDao.purgeStaleProducts(
+            listOf(
+                FoodSourceType.OpenFoodFacts,
+                FoodSourceType.USDA,
+                FoodSourceType.Custom,
+            )
+        )
 }
 
 private fun ProductEntity.toModel(): Product =
@@ -109,6 +154,8 @@ private fun ProductEntity.toModel(): Product =
         nutritionFacts = this.toNutritionFacts(),
         categories = this.categories?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
         isFavorite = this.isFavorite,
+        sourceBarcode = this.sourceBarcode,
+        isEdited = this.isEdited,
     )
 
 private fun ProductEntity.toNutritionFacts(): NutritionFacts =
@@ -122,6 +169,7 @@ private fun Product.toEntity(): ProductEntity {
         name = name,
         brand = brand,
         barcode = barcode,
+        sourceBarcode = sourceBarcode,
         nutrients = nutrients,
         vitamins = vitamins,
         minerals = minerals,
@@ -133,5 +181,6 @@ private fun Product.toEntity(): ProductEntity {
         isLiquid = isLiquid,
         categories = this.categories?.joinToString(","),
         isFavorite = this.isFavorite,
+        isEdited = this.isEdited,
     )
 }

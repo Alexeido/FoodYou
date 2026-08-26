@@ -30,3 +30,13 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 ./claude/*
+
+# Experimentos, scraping y servidores propios: viven fuera del repo
+/server/
+/docs/raspberry-server/
+.env
+*.env
+!*.env.example
+data/*.db
+*.sqlite
+*.sqlite3

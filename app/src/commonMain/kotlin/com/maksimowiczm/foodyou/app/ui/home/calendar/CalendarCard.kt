@@ -289,43 +289,43 @@ private fun DatePickerRowItem(
             label = "Day status dot color",
         )
 
-    Box(
+    // Only the day number sits inside the selection circle; the weekday label stays outside and
+    // muted, as in the approved design.
+    Column(
         modifier =
             modifier
-                .height(IntrinsicSize.Min)
-                .padding(4.dp)
+                .padding(2.dp)
                 .clip(MaterialTheme.shapes.medium)
                 .clickable { onClick() }
-                .drawBehind { drawRect(backgroundColor) }
-                .padding(4.dp),
-        contentAlignment = Alignment.Center,
+                .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            modifier = Modifier.aspectRatio(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+        Text(
+            text = namesOfDayOfWeek[dayOfWeek],
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        Box(
+            modifier = Modifier.size(34.dp).clip(CircleShape).background(backgroundColor),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = namesOfDayOfWeek[dayOfWeek],
-                style = MaterialTheme.typography.bodyMedium,
-                color = color,
-                textAlign = TextAlign.Center,
-            )
             Text(
                 text = date.day.toString(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = color,
                 textAlign = TextAlign.Center,
             )
-            // Status dot — always occupies space to keep cell height consistent
-            Box(
-                modifier =
-                    Modifier.padding(top = 2.dp)
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(dotColor),
-            )
         }
+
+        // Status dot — always occupies space to keep cell height consistent
+        Box(
+            modifier =
+                Modifier.padding(top = 3.dp).size(4.dp).clip(CircleShape).background(dotColor)
+        )
     }
 }
 

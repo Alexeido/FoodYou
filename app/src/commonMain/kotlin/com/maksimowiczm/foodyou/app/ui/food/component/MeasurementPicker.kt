@@ -1,18 +1,23 @@
 package com.maksimowiczm.foodyou.app.ui.food.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -22,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -69,43 +75,42 @@ fun MeasurementPicker(
     }
 
     Column(modifier) {
-        Row {
-            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                Icon(painter = painterResource(Res.drawable.ic_weight), contentDescription = null)
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            Input(
-                formField = state.inputField,
-                type = state.type,
-                types = state.possibleTypes,
-                onSelect = { state.type = it },
-                modifier = Modifier.weight(1f).padding(end = 8.dp),
-            )
-        }
+        Input(
+            formField = state.inputField,
+            type = state.type,
+            types = state.possibleTypes,
+            onSelect = { state.type = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        )
 
         Spacer(Modifier.height(8.dp))
 
-        FlowRow(
-            modifier = Modifier.padding(horizontal = 8.dp),
+        // One scrolling row rather than a wrapping grid: the suggestions are a shortcut, not a
+        // list to read, and two rows of them pushed the nutrients off screen.
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.suggestions.forEach { measurement ->
+            items(state.suggestions) { measurement ->
                 val chipLabel =
                     measurement.stringResourceWithWeight(
                         totalWeight = totalWeight,
                         servingWeight = servingWeight,
                         isLiquid = isLiquid,
                     ) ?: measurement.stringResource()
-                SuggestionChip(
+                val selected = state.measurement == measurement
+                FilterChip(
+                    selected = selected,
                     onClick = {
                         state.inputField.textFieldState.setTextAndPlaceCursorAtEnd(
                             text = measurement.rawValue.formatClipZeros()
                         )
                         state.type = measurement.type
                     },
-                    label = { Text(chipLabel) },
+                    label = {
+                        Text(text = chipLabel, style = MaterialTheme.typography.labelLarge)
+                    },
+                    shape = RoundedCornerShape(10.dp),
                 )
             }
         }
@@ -122,11 +127,13 @@ private fun Input(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
+    // Toned down on purpose: the strong primary container is reserved for the screen's single
+    // primary action (the FAB), so the amount field doesn't compete with it.
     val inputColor by
         animateColorAsState(
             targetValue =
                 if (formField.error == null) {
-                    MaterialTheme.colorScheme.primaryContainer
+                    MaterialTheme.colorScheme.surfaceContainerHighest
                 } else {
                     MaterialTheme.colorScheme.errorContainer
                 }
@@ -135,28 +142,23 @@ private fun Input(
         animateColorAsState(
             targetValue =
                 if (formField.error == null) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                    MaterialTheme.colorScheme.onSurface
                 } else {
                     MaterialTheme.colorScheme.onErrorContainer
                 }
         )
 
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Surface(
-            modifier = Modifier.height(48.dp).width(120.dp),
+            modifier = Modifier.height(52.dp).weight(1f),
             color = inputColor,
             contentColor = contentColor,
-            shape =
-                RoundedCornerShape(
-                    topStart = 16.dp,
-                    bottomStart = 16.dp,
-                    topEnd = 4.dp,
-                    bottomEnd = 4.dp,
-                ),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             BasicTextField(
                 state = formField.textFieldState,
-                modifier = Modifier.height(48.dp).padding(horizontal = 16.dp),
+                modifier = Modifier.height(52.dp).padding(horizontal = 16.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 textStyle = LocalTextStyle.current.merge(LocalContentColor.current),
                 lineLimits = TextFieldLineLimits.SingleLine,
@@ -167,16 +169,11 @@ private fun Input(
 
         Surface(
             onClick = { expanded = true },
-            modifier = Modifier.heightIn(min = 48.dp).weight(1f),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape =
-                RoundedCornerShape(
-                    topStart = 4.dp,
-                    bottomStart = 4.dp,
-                    topEnd = 16.dp,
-                    bottomEnd = 16.dp,
-                ),
+            modifier = Modifier.height(52.dp).width(124.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -184,7 +181,7 @@ private fun Input(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                 )
-                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                     Icon(imageVector = Icons.Outlined.KeyboardArrowDown, contentDescription = null)
 
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -209,35 +206,48 @@ fun rememberMeasurementPickerState(
     suggestions: List<Measurement>,
     possibleTypes: List<MeasurementType>,
     selectedMeasurement: Measurement,
-): MeasurementPickerState {
-    val inputField =
-        rememberFormField(
-            initialValue = selectedMeasurement.rawValue.toFloat(),
-            parser = nullableFloatParser(onNotANumber = { "Invalid number format" }),
-            validator =
-                positiveFloatValidator(
-                    onNotPositive = { "Value must be positive" },
-                    onNull = { "Value cannot be empty" },
-                ),
-            textFieldState = rememberTextFieldState(selectedMeasurement.rawValue.formatClipZeros()),
-            validateFirst = true,
-        )
-    val typeState = rememberSaveable { mutableStateOf(selectedMeasurement.type) }
-    val measurementState =
-        rememberSaveable(selectedMeasurement, stateSaver = Measurement.Saver) {
-            mutableStateOf(selectedMeasurement)
+): MeasurementPickerState =
+    // Keyed on the incoming measurement: `rememberSaveable`/`rememberTextFieldState` below keep
+    // their value per composition slot, so without this the unit and amount of the previously
+    // opened food are restored for the next one — which is how a liquid ended up opening in grams
+    // after any solid had been measured.
+    key(selectedMeasurement) {
+        val inputField =
+            rememberFormField(
+                initialValue = selectedMeasurement.rawValue.toFloat(),
+                parser = nullableFloatParser(onNotANumber = { "Invalid number format" }),
+                validator =
+                    positiveFloatValidator(
+                        onNotPositive = { "Value must be positive" },
+                        onNull = { "Value cannot be empty" },
+                    ),
+                textFieldState =
+                    rememberTextFieldState(selectedMeasurement.rawValue.formatClipZeros()),
+                validateFirst = true,
+            )
+        val typeState = rememberSaveable { mutableStateOf(selectedMeasurement.type) }
+        val measurementState =
+            rememberSaveable(selectedMeasurement, stateSaver = Measurement.Saver) {
+                mutableStateOf(selectedMeasurement)
+            }
+
+        // Safety net: never sit on a unit this food can't be measured in.
+        LaunchedEffect(possibleTypes, selectedMeasurement) {
+            if (possibleTypes.isNotEmpty() && typeState.value !in possibleTypes) {
+                typeState.value = selectedMeasurement.type
+            }
         }
 
-    return remember(suggestions, possibleTypes, inputField, typeState, measurementState) {
-        MeasurementPickerState(
-            suggestions = suggestions,
-            possibleTypes = possibleTypes,
-            inputField = inputField,
-            measurementState = measurementState,
-            typeState = typeState,
-        )
+        remember(suggestions, possibleTypes, inputField, typeState, measurementState) {
+            MeasurementPickerState(
+                suggestions = suggestions,
+                possibleTypes = possibleTypes,
+                inputField = inputField,
+                measurementState = measurementState,
+                typeState = typeState,
+            )
+        }
     }
-}
 
 class MeasurementPickerState(
     val suggestions: List<Measurement>,
@@ -249,8 +259,20 @@ class MeasurementPickerState(
     var measurement by measurementState
     var type by typeState
 
+    /**
+     * Sets the amount from a computed weight (used by the tappable macro cells).
+     *
+     * Picks the unit the food actually supports: grams for solids, millilitres for liquids (the app
+     * treats 1 ml as 1 g throughout). Forcing [MeasurementType.Gram] here used to leave liquids on a
+     * unit they can't be saved with.
+     */
     fun setWeightGrams(grams: Float) {
-        type = MeasurementType.Gram
+        type =
+            when {
+                MeasurementType.Gram in possibleTypes -> MeasurementType.Gram
+                MeasurementType.Milliliter in possibleTypes -> MeasurementType.Milliliter
+                else -> type
+            }
         inputField.textFieldState.setTextAndPlaceCursorAtEnd(grams.toDouble().formatClipZeros())
     }
 }

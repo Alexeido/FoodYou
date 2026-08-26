@@ -31,6 +31,13 @@ data class Product(
     override val nutritionFacts: NutritionFacts,
     val categories: List<String>? = null,
     val isFavorite: Boolean = false,
+    /**
+     * Immutable EAN as it comes from the source; identity anchor for dedup and refresh. `null` for
+     * user-created products. May differ from [barcode] once the user overrides the visible code.
+     */
+    val sourceBarcode: String? = null,
+    /** True when the user hand-edited this product (durable: protected from the mirror purge). */
+    val isEdited: Boolean = false,
 ) : Food {
     override val totalWeight: Double? = packageWeight
 

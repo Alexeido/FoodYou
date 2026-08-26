@@ -1,5 +1,6 @@
 package com.maksimowiczm.foodyou.app.ui.food.search
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -21,14 +21,13 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,7 +44,8 @@ import com.maksimowiczm.foodyou.food.search.domain.FoodSearch
 import com.valentinilk.shimmer.ShimmerBounds
 import com.valentinilk.shimmer.rememberShimmer
 import foodyou.app.generated.resources.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -56,6 +56,8 @@ fun FoodSearchApp(
     onUpdateUsdaApiKey: () -> Unit,
     modifier: Modifier = Modifier,
     excludedRecipe: FoodId.Recipe? = null,
+    targetMealId: Long? = null,
+    targetDate: LocalDate? = null,
 ) {
     val viewModel: FoodSearchViewModel = koinViewModel { parametersOf(excludedRecipe) }
 
@@ -69,6 +71,8 @@ fun FoodSearchApp(
         onUpdateUsdaApiKey = onUpdateUsdaApiKey,
         onAlternativeDb = viewModel::searchOnAlternativeDb,
         modifier = modifier,
+        targetMealId = targetMealId,
+        targetDate = targetDate,
     )
 }
 
@@ -78,53 +82,72 @@ private fun FoodSearchApp(
     onSearch: (String?) -> Unit,
     onSourceChange: (FoodFilter.Source) -> Unit,
     onFavoritesChange: (Boolean) -> Unit,
-    onToggleFavorite: (com.maksimowiczm.foodyou.food.domain.entity.FoodId.Product, Boolean) -> Unit,
+    onToggleFavorite: (FoodId.Product, Boolean) -> Unit,
     onFoodClick: (FoodSearch, Measurement) -> Unit,
     onUpdateUsdaApiKey: () -> Unit,
     onAlternativeDb: () -> Unit,
     modifier: Modifier = Modifier,
+    targetMealId: Long? = null,
+    targetDate: LocalDate? = null,
     appState: FoodSearchAppState = rememberFoodSearchAppState(),
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val onSearch: (String?) -> Unit =
-        remember(onSearch, appState, coroutineScope) {
-            { query ->
-                appState.searchTextFieldState.setTextAndPlaceCursorAtEnd(query ?: "")
-                onSearch(query)
-                coroutineScope.launch { appState.searchBarState.animateToCollapsed() }
-            }
+    val remoteFilterSources =
+        remember(uiState.enabledRemoteSources) {
+            uiState.enabledRemoteSources.map { it.toFilterSource() }
+        }
+    var pickedDbSource by remember { mutableStateOf<FoodFilter.Source?>(null) }
+    val activeDbSource: FoodFilter.Source? =
+        when {
+            !uiState.filter.favorites && uiState.filter.source in remoteFilterSources ->
+                uiState.filter.source
+            pickedDbSource in remoteFilterSources -> pickedDbSource
+            else ->
+                uiState.primarySource?.toFilterSource()?.takeIf { it in remoteFilterSources }
+                    ?: remoteFilterSources.firstOrNull()
         }
 
-    val pages = uiState.currentSourceState?.collectAsLazyPagingItems()
-    val shimmer = rememberShimmer(ShimmerBounds.View)
+    val activeTab =
+        when {
+            uiState.filter.favorites -> SearchTab.Favorites
+            uiState.filter.source == FoodFilter.Source.Recent -> SearchTab.Recent
+            uiState.filter.source == FoodFilter.Source.YourFood -> SearchTab.YourFood
+            else -> SearchTab.Database
+        }
+
+    val hasText = appState.searchTextFieldState.text.isNotBlank()
+
+    // Live search as the user types: local tabs (Recent/Yours/Favorites) filter instantly, network
+    // sources debounce inside the view model. It stays on the current tab until the user submits.
+    LaunchedEffect(Unit) {
+        snapshotFlow { appState.searchTextFieldState.text.toString() }
+            .collect { text -> onSearch(text.ifBlank { null }) }
+    }
+
+    // Pressing search / scanning a barcode jumps to the primary database tab.
+    val onSubmit: (String?) -> Unit = { query ->
+        appState.focused = false
+        if (!query.isNullOrBlank()) {
+            onFavoritesChange(false)
+            activeDbSource?.let { onSourceChange(it) }
+        }
+    }
 
     FullScreenCameraBarcodeScanner(
         visible = appState.showBarcodeScanner,
-        onBarcodeScan = {
+        onBarcodeScan = { code ->
             appState.showBarcodeScanner = false
-            onSearch(it)
+            appState.searchTextFieldState.setTextAndPlaceCursorAtEnd(code)
+            onSubmit(code)
         },
         onClose = { appState.showBarcodeScanner = false },
     )
 
-    val searchInputField =
-        @Composable {
-            FoodSearchBarInputField(
-                searchBarState = appState.searchBarState,
-                textFieldState = appState.searchTextFieldState,
-                onSearch = onSearch,
-                onBarcodeScanner = { appState.showBarcodeScanner = true },
-            )
-        }
+    val pages = uiState.currentSourceState?.collectAsLazyPagingItems()
+    val shimmer = rememberShimmer(ShimmerBounds.View)
 
-    FoodSearchView(
-        appState = appState,
-        uiState = uiState,
-        onFill = { search -> appState.searchTextFieldState.setTextAndPlaceCursorAtEnd(search) },
-        onSearch = onSearch,
-        onSource = onSourceChange,
-        inputField = searchInputField,
-    )
+    val showSuggestions = appState.focused && !hasText
+    val showRecentMeals =
+        activeTab == SearchTab.Recent && !hasText && targetMealId != null && targetDate != null
 
     Scaffold(modifier) { paddingValues ->
         // Fix for searchbar issues on Android SDK 27 and below
@@ -136,127 +159,172 @@ private fun FoodSearchApp(
             modifier =
                 Modifier.fillMaxWidth()
                     .zIndex(10f)
+                    .background(MaterialTheme.colorScheme.surface)
                     .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                    .windowInsetsPadding(
-                        WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)
-                    )
+                    .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
                     .padding(top = paddingValues.calculateTopPadding())
                     .onSizeChanged { topContentHeight = it.height }
-                    .padding(vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                    .padding(top = 8.dp),
         ) {
-            SearchBar(
-                state = appState.searchBarState,
-                inputField = searchInputField,
+            FoodSearchBar(
+                textFieldState = appState.searchTextFieldState,
+                focused = appState.focused,
+                onFocusChange = { appState.focused = it },
+                onSearch = onSubmit,
+                onBarcodeScanner = { appState.showBarcodeScanner = true },
                 modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
-                colors =
-                    SearchBarDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ),
-                shadowElevation = 2.dp,
             )
 
-            if (uiState.sources.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                FoodSearchFilters(
-                    uiState = uiState,
-                    onSource = {
-                        onSourceChange(it)
-
-                        if (it == uiState.filter.source) {
-                            val listState = appState.listStates.state(it)
-                            coroutineScope.launch { listState.animateScrollToItem(0) }
-                        }
+            if (showSuggestions) {
+                Spacer(Modifier.height(6.dp))
+                RecentSearchSuggestions(
+                    searches = uiState.recentSearches,
+                    onFill = { appState.searchTextFieldState.setTextAndPlaceCursorAtEnd(it) },
+                    onSearch = { s ->
+                        appState.searchTextFieldState.setTextAndPlaceCursorAtEnd(s)
+                        onSubmit(s)
                     },
-                    onFavoritesChange = { enabled -> onFavoritesChange(enabled) },
-                    modifier = Modifier.height(32.dp + 8.dp + 32.dp).fillMaxWidth(),
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
 
-            val error = pages?.loadState?.error as? RemoteFoodException
+            Spacer(Modifier.height(8.dp))
+            SearchTabs(
+                activeTab = activeTab,
+                activeDbSource = activeDbSource,
+                enabledRemoteSources = uiState.enabledRemoteSources,
+                onRecent = {
+                    onFavoritesChange(false)
+                    onSourceChange(FoodFilter.Source.Recent)
+                },
+                onYourFood = {
+                    onFavoritesChange(false)
+                    onSourceChange(FoodFilter.Source.YourFood)
+                },
+                onFavorites = { onFavoritesChange(true) },
+                onDatabase = { source ->
+                    pickedDbSource = source
+                    onFavoritesChange(false)
+                    onSourceChange(source)
+                },
+            )
 
-            when (val ex = error) {
-                null -> Unit
-                else ->
-                    FoodSearchErrorCard(
-                        error = ex,
-                        onRetry = pages::retry,
-                        onAlternativeDb = onAlternativeDb,
-                        onUsdaApiKey = onUpdateUsdaApiKey,
-                        modifier =
-                            Modifier.fillMaxWidth().padding(top = 8.dp).padding(horizontal = 16.dp),
-                    )
+            val error = pages?.loadState?.error as? RemoteFoodException
+            if (error != null) {
+                FoodSearchErrorCard(
+                    error = error,
+                    onRetry = pages::retry,
+                    onAlternativeDb = onAlternativeDb,
+                    onUsdaApiKey = onUpdateUsdaApiKey,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).padding(horizontal = 16.dp),
+                )
             }
         }
 
-        val paddingValues =
+        val contentPadding =
             paddingValues.add(
                 top = LocalDensity.current.run { topContentHeight.toDp() },
                 bottom = 56.dp + 32.dp,
             )
 
-        if (pages?.itemCount == 0 && pages.loadState.append !is LoadState.Loading) {
-            Box(Modifier.fillMaxSize()) {
-                Text(
-                    text = stringResource(Res.string.neutral_no_food_found),
-                    modifier = Modifier.safeContentPadding().align(Alignment.Center),
-                )
-            }
-        }
-
-        if (pages?.delayedLoadingState() == true) {
-            Box(Modifier.fillMaxSize().zIndex(20f)) {
+        Box(Modifier.fillMaxSize()) {
+            if (pages?.delayedLoadingState() == true) {
                 ContainedLoadingIndicator(
                     modifier =
                         Modifier.align(Alignment.TopCenter)
-                            .padding(top = paddingValues.calculateTopPadding())
+                            .zIndex(20f)
+                            .padding(top = contentPadding.calculateTopPadding())
                 )
             }
-        }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = paddingValues,
-            state = appState.listStates.state(uiState.filter.source),
-        ) {
-            if (pages != null) {
-                items(
-                    count = pages.itemCount,
-                    key = pages.itemKey { (it.id to uiState.filter.source).toString() },
-                ) { i ->
-                    val food = pages[i]
-
-                    when (food) {
-                        null -> FoodListItemSkeleton(shimmer)
-                        is FoodSearch.Product -> {
-                            val measurement = food.suggestedMeasurement
-                                FoodSearchListItem(
-                                food = food,
-                                measurement = measurement,
-                                onClick = { onFoodClick(food, measurement) },
-                                    onToggleFavorite = { id, newState -> onToggleFavorite(id, newState) },
-                            )
-                        }
-
-                        is FoodSearch.Recipe -> {
-                            val measurement = food.suggestedMeasurement
-                            FoodSearchListItem(
-                                food = food,
-                                measurement = measurement,
-                                onClick = { onFoodClick(food, measurement) },
-                                shimmer = shimmer,
-                            )
-                        }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding,
+                state = appState.listStates.state(uiState.filter.source),
+            ) {
+                if (showRecentMeals) {
+                    item(key = "recent-meals") {
+                        RecentMealsSection(targetMealId = targetMealId!!, targetDate = targetDate!!)
                     }
                 }
 
-                if (pages.loadState.append is LoadState.Loading) {
+                if (activeTab == SearchTab.Recent && !hasText && (pages?.itemCount ?: 0) > 0) {
+                    item(key = "recent-foods-header") {
+                        SearchSectionHeader(stringResource(Res.string.headline_recent_foods))
+                    }
+                }
+
+                if (pages != null) {
+                    items(
+                        count = pages.itemCount,
+                        // Index is part of the key on purpose: distinct remote results can map onto
+                        // the same cached product id, and a repeated key crashes LazyColumn.
+                        key = { index ->
+                            "${uiState.filter.source}:$index:${pages.peek(index)?.id}"
+                        },
+                    ) { i ->
+                        when (val food = pages[i]) {
+                            null -> FoodListItemSkeleton(shimmer)
+                            is FoodSearch.Product -> {
+                                val measurement = food.suggestedMeasurement
+                                FoodSearchListItem(
+                                    food = food,
+                                    measurement = measurement,
+                                    onClick = { onFoodClick(food, measurement) },
+                                    onToggleFavorite = { id, newState ->
+                                        onToggleFavorite(id, newState)
+                                    },
+                                )
+                            }
+
+                            is FoodSearch.Recipe -> {
+                                val measurement = food.suggestedMeasurement
+                                FoodSearchListItem(
+                                    food = food,
+                                    measurement = measurement,
+                                    onClick = { onFoodClick(food, measurement) },
+                                    shimmer = shimmer,
+                                )
+                            }
+                        }
+                    }
+
+                    if (pages.loadState.append is LoadState.Loading) {
+                        items(10) { FoodListItemSkeleton(shimmer) }
+                    }
+                }
+
+                if (pages == null) {
                     items(10) { FoodListItemSkeleton(shimmer) }
                 }
             }
 
-            if (pages == null) {
-                items(10) { FoodListItemSkeleton(shimmer) }
+            val isEmpty =
+                pages != null &&
+                    pages.itemCount == 0 &&
+                    pages.loadState.append !is LoadState.Loading &&
+                    pages.loadState.refresh !is LoadState.Loading
+            if (isEmpty && !showRecentMeals) {
+                val message =
+                    when {
+                        hasText -> stringResource(Res.string.neutral_no_food_found)
+                        activeTab == SearchTab.YourFood ->
+                            stringResource(Res.string.neutral_no_created_foods)
+                        activeTab == SearchTab.Favorites ->
+                            stringResource(Res.string.neutral_no_favorites)
+                        activeTab == SearchTab.Database ->
+                            stringResource(Res.string.neutral_nothing_added_here)
+                        else -> stringResource(Res.string.neutral_no_food_found)
+                    }
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier.align(Alignment.Center)
+                            .padding(horizontal = 32.dp)
+                            .padding(bottom = 48.dp),
+                )
             }
         }
     }
@@ -269,4 +337,5 @@ private fun ListStates.state(source: FoodFilter.Source) =
         FoodFilter.Source.OpenFoodFacts -> openFoodFacts
         FoodFilter.Source.USDA -> usda
         FoodFilter.Source.SwissFoodCompositionDatabase -> swiss
+        FoodFilter.Source.Custom -> custom
     }

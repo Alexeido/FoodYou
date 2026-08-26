@@ -7,8 +7,13 @@ import com.maksimowiczm.foodyou.food.search.domain.FoodSearchPreferences
 internal data class FoodPreferencesModel(
     val useOpenFoodFacts: Boolean? = null,
     val useUsda: Boolean? = null,
+    val useCustom: Boolean? = null,
 ) {
     constructor(
         domain: FoodSearchPreferences
-    ) : this(useOpenFoodFacts = domain.isOpenFoodFactsEnabled, useUsda = domain.isUsdaEnabled)
+    ) : this(
+        useOpenFoodFacts = domain.isOpenFoodFactsEnabled,
+        useUsda = domain.isUsdaEnabled,
+        useCustom = domain.isCustomEnabled,
+    )
 }

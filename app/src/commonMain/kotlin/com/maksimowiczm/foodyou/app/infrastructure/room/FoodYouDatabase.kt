@@ -18,6 +18,7 @@ import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductCate
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addDiaryProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addEntryPositionMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductFavoriteMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductIdentityAndMealIconMigration
 import com.maksimowiczm.foodyou.common.domain.database.TransactionProvider
 import com.maksimowiczm.foodyou.common.domain.database.TransactionScope as DomainTransactionScope
 import com.maksimowiczm.foodyou.common.infrastructure.room.FoodSourceTypeConverter
@@ -33,6 +34,7 @@ import com.maksimowiczm.foodyou.food.infrastructure.room.ProductFts
 import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeEntity
 import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeFts
 import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeIngredientEntity
+import com.maksimowiczm.foodyou.food.search.infrastructure.room.CustomFoodSourcePagingKeyEntity
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.FoodSearchDatabase
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.OpenFoodFactsPagingKeyEntity
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.RecipeAllIngredientsView
@@ -57,6 +59,7 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             RecipeIngredientEntity::class,
             OpenFoodFactsPagingKeyEntity::class,
             USDAPagingKeyEntity::class,
+            CustomFoodSourcePagingKeyEntity::class,
             FoodEventEntity::class,
             SearchEntry::class,
             MealEntity::class,
@@ -119,6 +122,11 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             /**
              * @see [FoodSearchFtsCyrillicMigration] Add Cyrillic tokenizer support to FTS tables
              */
+            AutoMigration(from = 36, to = 37), // Add CustomFoodSourcePagingKeyEntity
+            /**
+             * @see [addProductIdentityAndMealIconMigration] Add sourceBarcode/isEdited/lastUsedAt to
+             *   Product and icon to Meal
+             */
         ],
 )
 @TypeConverters(
@@ -143,7 +151,7 @@ abstract class FoodYouDatabase :
         }
 
     companion object {
-        const val VERSION = 36
+        const val VERSION = 38
 
         private val migrations: List<Migration> =
             listOf(
@@ -165,6 +173,7 @@ abstract class FoodYouDatabase :
                 addProductFavoriteMigration,
                 addDiaryProductCategoriesMigration,
                 addEntryPositionMigration,
+                addProductIdentityAndMealIconMigration,
             )
 
         fun Builder<FoodYouDatabase>.buildDatabase(

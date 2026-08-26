@@ -8,6 +8,7 @@ import com.maksimowiczm.foodyou.common.config.NetworkConfig
 import com.maksimowiczm.foodyou.common.infrastructure.auth.authModule
 import com.maksimowiczm.foodyou.common.infrastructure.crypto.cryptoModule
 import com.maksimowiczm.foodyou.common.infrastructure.csv.csvModule
+import com.maksimowiczm.foodyou.common.infrastructure.customsource.customFoodSourceCredentialsModule
 import com.maksimowiczm.foodyou.common.infrastructure.datastore.dataStoreModule
 import com.maksimowiczm.foodyou.common.infrastructure.inmemory.inMemoryModule
 import com.maksimowiczm.foodyou.common.infrastructure.koin.applicationCoroutineScope
@@ -27,6 +28,7 @@ fun appModule(applicationCoroutineScope: CoroutineScope) = module {
     authModule()
     cryptoModule()
     csvModule()
+    customFoodSourceCredentialsModule()
     dataStoreModule()
     inMemoryModule()
     roomModule()

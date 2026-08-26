@@ -55,9 +55,40 @@ interface ProductRepository {
         categories: List<String>? = null,
     ): FoodId.Product?
 
+    /**
+     * Inserts the product, or refreshes the existing cached copy. Unlike [insertUniqueProduct] this
+     * never returns null for a duplicate — live network searches need an id for every result they
+     * show. [ProductUpsertResult.created] tells callers whether the row is new, so per-result
+     * bookkeeping (history events) is not repeated on every search.
+     */
+    suspend fun insertOrRefreshProduct(
+        name: String,
+        brand: String?,
+        barcode: String?,
+        note: String?,
+        isLiquid: Boolean,
+        packageWeight: Double?,
+        servingWeight: Double?,
+        source: FoodSource,
+        nutritionFacts: NutritionFacts,
+        categories: List<String>? = null,
+    ): ProductUpsertResult
+
     suspend fun updateProduct(product: Product)
 
     suspend fun deleteProduct(product: Product)
 
     suspend fun updateFavorite(productId: FoodId.Product, isFavorite: Boolean)
+
+    /**
+     * Deletes transient search-mirror products: remote-sourced rows the user never kept (not
+     * favorite, not edited, never logged, not used in a recipe). Safe — the diary keeps its own
+     * snapshots.
+     *
+     * @return the number of rows deleted.
+     */
+    suspend fun purgeStaleProducts(): Int
 }
+
+/** Result of [ProductRepository.insertOrRefreshProduct]. */
+data class ProductUpsertResult(val id: FoodId.Product, val created: Boolean)

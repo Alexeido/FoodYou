@@ -475,6 +475,26 @@ interface FoodSearchDao {
         """
     )
     fun observeRecentFoodCountByBarcode(barcode: String, nowEpochSeconds: Long): Flow<Int>
+
+    /**
+     * Recently ADDED products from a given source, most recent first. Used for the empty state of a
+     * remote database tab — so browsing shows "what I logged from here", not the whole mirror.
+     */
+    @Query(
+        """
+        SELECT $PRODUCT_FOOD_SEARCH_SQL_SELECT, s.type AS measurementType, s.value AS measurementValue
+        FROM LatestMeasurementSuggestion s LEFT JOIN Product p ON s.productId = p.id
+        WHERE
+            s.productId IS NOT NULL AND
+            s.epochSeconds >= :nowEpochSeconds - 2592000 AND
+            p.sourceType = :source
+        ORDER BY s.epochSeconds DESC
+        """
+    )
+    fun observeRecentFoodBySource(
+        source: FoodSourceType,
+        nowEpochSeconds: Long,
+    ): PagingSource<Int, FoodSearch>
 }
 
 // Don't do it twice
