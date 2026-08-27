@@ -606,4 +606,5 @@
     <string name="description_assistant_suggestion_fill_day">Fill in the rest of my day</string>
     <string name="description_assistant_suggestion_week">How did I eat this week</string>
     <string name="description_assistant_suggestion_fat">Where is all this fat coming from</string>
+    <string name="headline_favorites">Favorites</string>
 </resources>

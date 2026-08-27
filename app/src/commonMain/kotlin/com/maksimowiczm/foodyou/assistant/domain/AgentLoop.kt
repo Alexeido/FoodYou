@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 
 /** What the chat screen shows while and after the loop runs. */
 sealed interface AgentEvent {
@@ -170,7 +171,19 @@ class AgentLoop(
         if (raw.isBlank()) buildJsonObject {}
         else runCatching { json.parseToJsonElement(raw).jsonObject }.getOrElse { buildJsonObject {} }
 
-    private fun errorPayload(message: String) = """{"ok":false,"error":"$message"}"""
+    /**
+     * Serialized properly rather than concatenated: a message carrying a quote or a newline - and
+     * several of the tool errors quote a tool name - would otherwise produce malformed JSON, and
+     * the model would receive garbage instead of a correction it can act on.
+     */
+    private fun errorPayload(message: String): String =
+        json.encodeToString(
+            JsonObject.serializer(),
+            buildJsonObject {
+                put("ok", false)
+                put("error", message)
+            },
+        )
 
     private fun workingLabel(toolName: String): String =
         when (toolName) {

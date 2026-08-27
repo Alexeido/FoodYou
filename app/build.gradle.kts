@@ -111,6 +111,13 @@ kotlin {
             implementation(libs.sqlite.android)
         }
 
+        androidUnitTest.dependencies {
+            // Da un Context de Android en la JVM, que es lo unico que faltaba para construir la
+            // base de datos de verdad en un test normal, sin emulador ni dispositivo.
+            implementation(libs.robolectric)
+            implementation(libs.androidx.testCore)
+        }
+
         androidInstrumentedTest.dependencies {
             implementation(libs.androidx.testCore)
             implementation(libs.androidx.testCore.ktx)
@@ -123,6 +130,13 @@ kotlin {
 }
 
 android {
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
+
     namespace = "com.maksimowiczm.foodyou"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
