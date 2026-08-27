@@ -118,7 +118,18 @@ fun Module.assistantModule() {
             HttpClient {
                 install(HttpTimeout)
                 install(ContentNegotiation) {
-                    json(Json { ignoreUnknownKeys = true; encodeDefaults = false })
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            // Los valores por defecto SI se envian: "type": "function" de cada
+                            // herramienta es uno de ellos, y sin el la API rechaza la peticion
+                            // entera con un 400.
+                            encodeDefaults = true
+                            // Los nulos no: content, tool_calls y temperature van vacios en la
+                            // mayoria de los mensajes y no deben aparecer.
+                            explicitNulls = false
+                        }
+                    )
                 }
                 install(ContentEncoding) { gzip() }
             }

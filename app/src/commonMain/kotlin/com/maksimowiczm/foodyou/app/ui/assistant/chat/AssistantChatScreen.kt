@@ -208,11 +208,21 @@ private fun AssistantTurn(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    Spacer(Modifier.height(4.dp))
+                    // El detalle tecnico, que es lo unico que permite arreglar el problema.
+                    // Antes se descartaba y solo quedaba "algo ha fallado", que no dice nada.
+                    if (turn.text.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = turn.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = stringResource(Res.string.description_assistant_diary_untouched),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.outline,
                     )
                 }
             }

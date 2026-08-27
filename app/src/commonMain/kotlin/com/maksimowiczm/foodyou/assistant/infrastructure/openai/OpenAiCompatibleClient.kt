@@ -34,7 +34,7 @@ class AssistantApiException(val error: AssistantApiError) :
         when (error) {
             is AssistantApiError.Unauthorized -> "API key rejected"
             is AssistantApiError.RateLimited -> "Rate limited"
-            is AssistantApiError.Http -> "HTTP ${error.status}"
+            is AssistantApiError.Http -> "HTTP ${error.status}. ${error.body}"
             is AssistantApiError.Network -> error.message
             is AssistantApiError.NotConfigured -> "Assistant not configured"
         }
