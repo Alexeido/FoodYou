@@ -4,6 +4,7 @@ import androidx.room.RoomDatabase
 import com.maksimowiczm.foodyou.common.domain.database.TransactionProvider
 import com.maksimowiczm.foodyou.food.infrastructure.room.FoodDatabase
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.FoodSearchDatabase
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDatabase
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.FoodDiaryDatabase
 import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipDatabase
 import org.koin.core.module.Module
@@ -25,6 +26,7 @@ fun Module.roomModule() {
                 TransactionProvider::class,
                 FoodDatabase::class,
                 FoodSearchDatabase::class,
+                AssistantDatabase::class,
                 FoodDiaryDatabase::class,
                 SponsorshipDatabase::class,
             )

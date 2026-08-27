@@ -11,6 +11,9 @@ interface ProductRepository {
 
     fun observeProducts(limit: Int, offset: Int): Flow<List<Product>>
 
+    /** Full-text search returning a plain list. For callers that cannot page, like the assistant. */
+    suspend fun searchProducts(query: String, limit: Int): List<Product>
+
     /**
      * @param name Name of the product.
      * @param brand Brand of the product, if available.

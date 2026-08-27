@@ -101,6 +101,15 @@ abstract class MeasurementDao {
         updateMeasurementIsEaten(id, isEaten)
     }
 
+    @Query(
+        """
+        SELECT * FROM Measurement
+        WHERE epochDay BETWEEN :from AND :to
+        ORDER BY epochDay ASC, mealId ASC, position ASC
+        """
+    )
+    abstract fun observeMeasurementsBetween(from: Long, to: Long): Flow<List<MeasurementEntity>>
+
     @Query("SELECT DISTINCT epochDay FROM Measurement WHERE epochDay BETWEEN :from AND :to")
     abstract fun observeActiveDays(from: Long, to: Long): Flow<List<Long>>
 

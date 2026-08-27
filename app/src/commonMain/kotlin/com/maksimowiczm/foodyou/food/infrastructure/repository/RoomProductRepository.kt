@@ -20,6 +20,9 @@ internal class RoomProductRepository(private val productDao: ProductDao) : Produ
     override fun observeProducts(limit: Int, offset: Int): Flow<List<Product>> =
         productDao.observeProducts(limit, offset).map { list -> list.map { it.toModel() } }
 
+    override suspend fun searchProducts(query: String, limit: Int): List<Product> =
+        productDao.searchProductsByText(query = query, limit = limit).map { it.toModel() }
+
     override fun observeProduct(id: FoodId.Product): Flow<Product?> =
         productDao.observeProduct(id.id).map { it?.toModel() }
 

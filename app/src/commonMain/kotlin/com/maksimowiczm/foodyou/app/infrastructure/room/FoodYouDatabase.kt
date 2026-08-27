@@ -7,6 +7,10 @@ import androidx.room.TypeConverters
 import androidx.room.immediateTransaction
 import androidx.room.migration.Migration
 import androidx.room.useWriterConnection
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantChangeEntity
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDatabase
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDao
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantMemoryEntity
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.FoodSearchFtsCyrillicMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.FoodSearchFtsMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.LegacyMigrations
@@ -70,6 +74,8 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             SponsorshipEntity::class,
             MeasurementSuggestionEntity::class,
             ManualDiaryEntryEntity::class,
+            AssistantChangeEntity::class,
+            AssistantMemoryEntity::class,
             ProductFts::class,
             RecipeFts::class,
         ],
@@ -105,6 +111,7 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
              * @see [LegacyMigrations.MIGRATION_18_19] Merge product and recipe measurements into
              *   MeasurementEntity
              */
+            AutoMigration(from = 38, to = 39),
             AutoMigration(from = 19, to = 20),
             /**
              * @see [LegacyMigrations.MIGRATION_20_21] Add isLiquid column to ProductEntity and
@@ -139,6 +146,7 @@ abstract class FoodYouDatabase :
     TransactionProvider,
     FoodDatabase,
     FoodSearchDatabase,
+    AssistantDatabase,
     FoodDiaryDatabase,
     SponsorshipDatabase {
 
@@ -151,7 +159,7 @@ abstract class FoodYouDatabase :
         }
 
     companion object {
-        const val VERSION = 38
+        const val VERSION = 39
 
         private val migrations: List<Migration> =
             listOf(

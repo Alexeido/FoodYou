@@ -14,6 +14,13 @@ interface FoodDiaryEntryRepository {
 
     fun observeAll(mealId: Long, date: LocalDate): Flow<List<FoodDiaryEntry>>
 
+    /**
+     * Every entry between two dates inclusive, across all meals.
+     *
+     * Ordered by date, then meal, then position, so callers that aggregate get a stable sequence.
+     */
+    fun observeRange(from: LocalDate, to: LocalDate): Flow<List<FoodDiaryEntry>>
+
     /** Recently logged meals as (mealId, date) references, most recently touched first. */
     fun observeRecentMealRefs(limit: Int): Flow<List<RecentMealRef>>
 

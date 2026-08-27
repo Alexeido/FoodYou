@@ -11,6 +11,19 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class ProductDao {
+    /**
+     * Plain-list full-text search, for callers that need results in one shot rather than paged.
+     * The assistant is one: it cannot scroll.
+     */
+    @Query(
+        """
+        SELECT p.* FROM Product p JOIN ProductFts fts ON p.id = fts.rowid
+        WHERE ProductFts MATCH :query || '*'
+        LIMIT :limit
+        """
+    )
+    abstract suspend fun searchProductsByText(query: String, limit: Int): List<ProductEntity>
+
     @Query(
         """
         SELECT *

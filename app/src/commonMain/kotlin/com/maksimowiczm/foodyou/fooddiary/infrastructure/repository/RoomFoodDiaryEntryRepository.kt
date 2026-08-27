@@ -104,6 +104,20 @@ internal class RoomFoodDiaryEntryRepository(
             }
     }
 
+    override fun observeRange(from: LocalDate, to: LocalDate): Flow<List<FoodDiaryEntry>> {
+        return dao.observeMeasurementsBetween(
+                from = from.toEpochDays(),
+                to = to.toEpochDays(),
+            )
+            .flatMapLatest { entities ->
+                if (entities.isEmpty()) {
+                    return@flatMapLatest flowOf(emptyList())
+                }
+
+                entities.map { entity -> observeFood(entity).map { entity.toEntry(it) } }.combine()
+            }
+    }
+
     override fun observeRecentMealRefs(limit: Int): Flow<List<RecentMealRef>> =
         dao.observeRecentMealGroups(limit).map { groups ->
             groups.map { RecentMealRef(mealId = it.mealId, date = LocalDate.fromEpochDays(it.epochDay)) }
@@ -224,6 +238,22 @@ internal class RoomFoodDiaryEntryRepository(
             val now = Clock.System.now().epochSeconds
             dao.updatePositionAndMeal(id.value, targetMealId, newPosition, now)
         }
+
+    /** Shared mapping so the per-meal and per-range queries can never drift apart. */
+    private fun MeasurementEntity.toEntry(food: DiaryFood): FoodDiaryEntry {
+        val zone = TimeZone.currentSystemDefault()
+        return FoodDiaryEntry(
+            id = id.toFoodDiaryEntryId(),
+            mealId = mealId,
+            date = LocalDate.fromEpochDays(epochDay),
+            measurement = Measurement.from(measurement, quantity),
+            food = food,
+            isEaten = isEaten,
+            createdAt = Instant.fromEpochSeconds(createdAt).toLocalDateTime(zone),
+            updatedAt = Instant.fromEpochSeconds(updatedAt).toLocalDateTime(zone),
+            position = position,
+        )
+    }
 
     private fun observeFood(measurementEntity: MeasurementEntity): Flow<DiaryFood> =
         measurementEntity.productId?.let { productId -> observeProduct(productId) }

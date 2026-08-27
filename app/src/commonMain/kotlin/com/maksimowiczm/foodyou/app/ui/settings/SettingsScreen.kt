@@ -35,6 +35,7 @@ fun SettingsScreen(
     onLanguage: () -> Unit,
     onGoals: () -> Unit,
     onPersonalization: () -> Unit,
+    onAssistant: () -> Unit,
     onDatabase: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -94,6 +95,15 @@ fun SettingsScreen(
             item {
                 GoalsSettingsListItem(
                     onClick = onGoals,
+                    shape = shape,
+                    color = color,
+                    contentColor = contentColor,
+                )
+            }
+
+            item {
+                AssistantSettingsListItem(
+                    onClick = onAssistant,
                     shape = shape,
                     color = color,
                     contentColor = contentColor,

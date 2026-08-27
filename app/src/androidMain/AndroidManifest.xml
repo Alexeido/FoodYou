@@ -3,6 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Dictado del asistente. Se pide en caliente, la primera vez que se toca el microfono. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- El reconocedor de voz vive en otra app; sin esto no se puede consultar si existe. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <queries>
         <intent>
