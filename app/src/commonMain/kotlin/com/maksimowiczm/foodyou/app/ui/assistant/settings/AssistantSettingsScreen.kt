@@ -1,5 +1,6 @@
 package com.maksimowiczm.foodyou.app.ui.assistant.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,6 +34,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -161,7 +164,7 @@ fun AssistantSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             // ---------------------------------------------------------------- resultado
             item { ConnectionResult(connection) }
 
-            // ---------------------------------------------------------------- modelos
+            // ---------------------------------------------------------------- modelo
             val available = (connection as? ConnectionState.Connected)?.models.orEmpty()
             if (available.isNotEmpty()) {
                 item {
@@ -175,17 +178,36 @@ fun AssistantSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 }
 
                 item {
-                    ModelPicker(
-                        title = stringResource(Res.string.headline_assistant_vision_model),
-                        description = stringResource(Res.string.description_assistant_vision_model),
-                        models = available,
-                        selected = settings.visionModel,
-                        onSelect = { model ->
-                            // Volver a tocar el ya elegido lo desactiva: sin modelo de vision la
-                            // camara desaparece del chat, en vez de fallar al usarla.
-                            viewModel.setVisionModel(if (model == settings.visionModel) "" else model)
-                        },
-                    )
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    viewModel.setSupportsVision(!settings.supportsVision)
+                                }
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(Res.string.headline_assistant_supports_vision),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text =
+                                    stringResource(
+                                        Res.string.description_assistant_supports_vision
+                                    ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = settings.supportsVision,
+                            onCheckedChange = viewModel::setSupportsVision,
+                        )
+                    }
                 }
             }
 
@@ -205,11 +227,22 @@ fun AssistantSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     )
                     Spacer(Modifier.height(8.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(4, 6, 8, 12, 16).forEach { value ->
+                        // 0 es "sin limite": una eleccion deliberada, no el valor por defecto.
+                        listOf(8, 16, 32, 64, 128, 0).forEach { value ->
                             FilterChip(
                                 selected = settings.maxIterations == value,
                                 onClick = { viewModel.setMaxIterations(value) },
-                                label = { Text(value.toString()) },
+                                label = {
+                                    Text(
+                                        if (value == 0) {
+                                            stringResource(
+                                                Res.string.action_assistant_unlimited_iterations
+                                            )
+                                        } else {
+                                            value.toString()
+                                        }
+                                    )
+                                },
                                 shape = RoundedCornerShape(10.dp),
                             )
                         }

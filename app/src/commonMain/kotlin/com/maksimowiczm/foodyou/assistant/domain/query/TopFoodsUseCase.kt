@@ -1,7 +1,5 @@
 package com.maksimowiczm.foodyou.assistant.domain.query
 
-import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
-import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
 
 /**
@@ -10,7 +8,7 @@ import kotlinx.datetime.LocalDate
  * This matters more than it looks: handing the model the foods already in the diary is what makes a
  * generated plan resemble what the user really buys, without a word of it in the prompt.
  */
-class TopFoodsUseCase(private val repository: FoodDiaryEntryRepository) {
+class TopFoodsUseCase(private val diary: DiaryReader) {
 
     suspend operator fun invoke(
         from: LocalDate,
@@ -18,20 +16,16 @@ class TopFoodsUseCase(private val repository: FoodDiaryEntryRepository) {
         limit: Int = 15,
         mealId: Long? = null,
     ): List<FoodFrequency> {
-        val entries =
-            repository
-                .observeRange(from, to)
-                .first()
-                .filter { mealId == null || it.mealId == mealId }
+        val lines = diary.range(from, to).filter { mealId == null || it.mealId == mealId }
 
-        return entries
-            .groupBy { it.food.name }
+        return lines
+            .groupBy { it.name }
             .map { (name, group) ->
                 FoodFrequency(
                     name = name,
                     brand = null,
                     times = group.size,
-                    totalGrams = group.sumOf { it.weight },
+                    totalGrams = group.sumOf { it.grams ?: 0.0 },
                     totalEnergy = group.sumOf { it.nutritionFacts.energy.value ?: 0.0 },
                 )
             }

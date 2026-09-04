@@ -1,6 +1,5 @@
 package com.maksimowiczm.foodyou.assistant.domain.query
 
-import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.MealRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
@@ -13,12 +12,12 @@ import kotlinx.datetime.LocalDate
  * told they dine at 23:40.
  */
 class MealTimingStatsUseCase(
-    private val repository: FoodDiaryEntryRepository,
+    private val diary: DiaryReader,
     private val mealRepository: MealRepository,
 ) {
 
     suspend operator fun invoke(from: LocalDate, to: LocalDate): List<MealTiming> {
-        val entries = repository.observeRange(from, to).first()
+        val entries = diary.range(from, to)
         if (entries.isEmpty()) return emptyList()
 
         val meals = mealRepository.observeMeals().first().associateBy { it.id }

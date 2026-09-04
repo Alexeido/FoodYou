@@ -5,6 +5,7 @@ import com.maksimowiczm.foodyou.assistant.domain.journal.ChangeJournal
 import com.maksimowiczm.foodyou.assistant.domain.journal.UndoAction
 import com.maksimowiczm.foodyou.assistant.domain.pad.AssistantPad
 import com.maksimowiczm.foodyou.assistant.domain.query.DiaryRangeUseCase
+import com.maksimowiczm.foodyou.assistant.domain.query.NutrientSelector
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.date
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.doubleOrNull
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.intOrNull
@@ -14,7 +15,10 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.Args.objects
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.stringOrNull
 import com.maksimowiczm.foodyou.assistant.domain.tool.AssistantTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.ToolSchema
+import com.maksimowiczm.foodyou.assistant.domain.tool.gramsFor
 import com.maksimowiczm.foodyou.assistant.domain.tool.round1
+import com.maksimowiczm.foodyou.assistant.domain.tool.targetAmountParam
+import com.maksimowiczm.foodyou.assistant.domain.tool.targetNutrientParam
 import com.maksimowiczm.foodyou.assistant.domain.tool.toolError
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.common.extension.now
@@ -89,15 +93,21 @@ class PadAddTool(
     override val name = "padAdd"
     override val description =
         "Anade un alimento al borrador. El foodId tiene que venir de searchFood. Devuelve un ref " +
-            "que sirve para quitarlo luego."
+            "que sirve para quitarlo luego. Acepta una cantidad fija (amount+unit) o un objetivo " +
+            "de nutriente (targetNutrient+targetAmount) para que la cantidad salga calculada."
     override val parameters =
         ToolSchema.obj(
             "date" to ToolSchema.date("Dia del borrador."),
             "mealId" to ToolSchema.integer("Comida a la que iria."),
             "foodId" to ToolSchema.integer("El foodId de searchFood."),
-            "amount" to ToolSchema.number("Cantidad."),
+            "amount" to
+                ToolSchema.number(
+                    "Cantidad. Omitelo si usas targetNutrient en su lugar."
+                ),
             "unit" to ToolSchema.string("Unidad. Por defecto gramos, o mililitros si es liquido."),
-            required = listOf("date", "mealId", "foodId", "amount"),
+            targetNutrientParam,
+            targetAmountParam,
+            required = listOf("date", "mealId", "foodId"),
         )
 
     override suspend fun call(arguments: JsonObject): JsonElement {
@@ -105,10 +115,27 @@ class PadAddTool(
         val product =
             productRepository.observeProduct(FoodId.Product(foodId)).first()
                 ?: return toolError("No existe el foodId $foodId. Buscalo con searchFood.")
-
-        val amount = arguments.doubleOrNull("amount") ?: return toolError("Falta 'amount'.")
-        val measurement = measurementFor(arguments.stringOrNull("unit"), amount, product.isLiquid)
         val food = product.toDiaryFood()
+
+        val amount = arguments.doubleOrNull("amount")
+        val measurement =
+            if (amount != null) {
+                measurementFor(arguments.stringOrNull("unit"), amount, product.isLiquid)
+            } else {
+                val nutrient =
+                    arguments.stringOrNull("targetNutrient")?.let(NutrientSelector::fromWireName)
+                        ?: return toolError("Indica 'amount' o 'targetNutrient'+'targetAmount'.")
+                val target =
+                    arguments.doubleOrNull("targetAmount")
+                        ?: return toolError("Falta 'targetAmount'.")
+                val grams =
+                    food.nutritionFacts.gramsFor(nutrient, target)
+                        ?: return toolError(
+                            "${product.headline} no tiene ${nutrient.wireName} suficiente para " +
+                                "calcular una cantidad."
+                        )
+                Measurement.Gram(grams)
+            }
         val grams = food.weight(measurement)
 
         val item =

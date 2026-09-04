@@ -1,8 +1,20 @@
 package com.maksimowiczm.foodyou.app.ui.assistant.chat
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -42,7 +55,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.common.component.ArrowBackIconButton
 import com.maksimowiczm.foodyou.assistant.domain.ChatError
 import com.maksimowiczm.foodyou.assistant.domain.ChatTurn
+import com.maksimowiczm.foodyou.common.compose.image.decodeBase64Image
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -58,6 +74,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun AssistantChatScreen(
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenConversations: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: AssistantChatViewModel = koinViewModel()
@@ -66,6 +83,8 @@ fun AssistantChatScreen(
     val working by viewModel.working.collectAsStateWithLifecycle()
     val model by viewModel.model.collectAsStateWithLifecycle()
     val supportsVision by viewModel.supportsVision.collectAsStateWithLifecycle()
+    val changeHistory by viewModel.changeHistory.collectAsStateWithLifecycle()
+    var showChangeHistory by rememberSaveable { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
 
@@ -99,8 +118,30 @@ fun AssistantChatScreen(
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.action_new_conversation)) },
+                                enabled = working == null,
                                 onClick = {
                                     viewModel.newConversation()
+                                    menuOpen = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(stringResource(Res.string.action_assistant_change_history))
+                                },
+                                enabled = working == null && turns.isNotEmpty(),
+                                onClick = {
+                                    viewModel.loadChangeHistory()
+                                    showChangeHistory = true
+                                    menuOpen = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(stringResource(Res.string.action_assistant_conversations))
+                                },
+                                enabled = working == null,
+                                onClick = {
+                                    onOpenConversations()
                                     menuOpen = false
                                 },
                             )
@@ -142,7 +183,11 @@ fun AssistantChatScreen(
                         when (turn.role) {
                             ChatTurn.Role.User -> UserBubble(turn)
                             ChatTurn.Role.Assistant ->
-                                AssistantTurn(turn = turn, onUndo = viewModel::undo)
+                                AssistantTurn(
+                                    turn = turn,
+                                    onUndo = viewModel::undo,
+                                    onContinue = { viewModel.send("continúa") },
+                                )
                         }
                     }
 
@@ -160,9 +205,17 @@ fun AssistantChatScreen(
 
             ChatComposer(
                 showCamera = supportsVision,
-                onSend = { text, image -> viewModel.send(text, image?.dataUri) },
+                onSend = { text, image -> viewModel.send(text, image) },
             )
         }
+    }
+
+    if (showChangeHistory) {
+        ChangeHistorySheet(
+            changes = changeHistory,
+            onRevertTo = viewModel::revertTo,
+            onDismissRequest = { showChangeHistory = false },
+        )
     }
 }
 
@@ -174,11 +227,34 @@ private fun UserBubble(turn: ChatTurn, modifier: Modifier = Modifier) {
             shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
-            Text(
-                text = turn.text,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            )
+            Column {
+                // La foto que se envio, dentro de la burbuja: sin esto el hilo no deja ni rastro
+                // de lo que se mando y no hay forma de saber si se adjunto la correcta.
+                if (turn.imageBase64 != null) {
+                    val bitmap = remember(turn.imageBase64) { decodeBase64Image(turn.imageBase64) }
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription =
+                                stringResource(Res.string.description_assistant_photo_attached),
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier.padding(6.dp)
+                                    .fillMaxWidth()
+                                    .heightIn(max = 200.dp)
+                                    .clip(RoundedCornerShape(14.dp)),
+                        )
+                    }
+                }
+
+                if (turn.text.isNotBlank()) {
+                    Text(
+                        text = turn.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -187,6 +263,7 @@ private fun UserBubble(turn: ChatTurn, modifier: Modifier = Modifier) {
 private fun AssistantTurn(
     turn: ChatTurn,
     onUndo: (Long) -> Unit,
+    onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Sin burbuja: la respuesta ocupa el ancho para que quepan las cifras y las acciones.
@@ -201,9 +278,11 @@ private fun AssistantTurn(
                     Text(
                         text =
                             stringResource(
-                                if (turn.error == ChatError.Unauthorized)
-                                    Res.string.error_assistant_unauthorized
-                                else Res.string.error_assistant_generic
+                                when (turn.error) {
+                                    ChatError.Unauthorized -> Res.string.error_assistant_unauthorized
+                                    ChatError.Timeout -> Res.string.error_assistant_timeout
+                                    ChatError.Other -> Res.string.error_assistant_generic
+                                }
                             ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
@@ -224,12 +303,21 @@ private fun AssistantTurn(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
                     )
+                    if (turn.error == ChatError.Timeout) {
+                        // Un timeout casi siempre solo necesita retomar el mismo turno, no
+                        // repetirlo desde cero - "continua" es justo lo que se escribiria a mano.
+                        Spacer(Modifier.height(10.dp))
+                        ChatPillButton(
+                            text = stringResource(Res.string.action_continue),
+                            onClick = onContinue,
+                        )
+                    }
                 }
             }
             return@Column
         }
 
-        Text(text = turn.text, style = MaterialTheme.typography.bodyMedium)
+        AssistantMarkdown(turn.text)
 
         if (turn.changeId != null) {
             Spacer(Modifier.height(8.dp))
@@ -240,8 +328,27 @@ private fun AssistantTurn(
 
 @Composable
 private fun UndoButton(undone: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ChatPillButton(
+        text =
+            stringResource(
+                if (undone) Res.string.description_assistant_undone else Res.string.action_undo
+            ),
+        onClick = onClick,
+        enabled = !undone,
+        modifier = modifier,
+    )
+}
+
+/** The small pill-shaped action a chat turn can offer - Undo, Continue, whatever comes next. */
+@Composable
+private fun ChatPillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     Surface(
-        modifier = modifier.then(if (undone) Modifier else Modifier.clickable(onClick = onClick)),
+        modifier = modifier.then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
         border =
@@ -251,14 +358,11 @@ private fun UndoButton(undone: Boolean, onClick: () -> Unit, modifier: Modifier 
             ),
     ) {
         Text(
-            text =
-                stringResource(
-                    if (undone) Res.string.description_assistant_undone else Res.string.action_undo
-                ),
+            text = text,
             style = MaterialTheme.typography.labelLarge,
             color =
-                if (undone) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.primary,
+                if (enabled) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
         )
     }
@@ -276,24 +380,53 @@ private fun WorkingLine(label: String, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(3) { index ->
-                    Box(
-                        Modifier.size(5.dp)
-                            .background(
-                                color =
-                                    MaterialTheme.colorScheme.primary.copy(
-                                        alpha = 0.4f + index * 0.3f
-                                    ),
-                                shape = RoundedCornerShape(3.dp),
-                            )
-                    )
-                }
+            PulsingDots()
+            // AnimatedContent en vez de un Text a secas: con una etiqueta nueva por cada
+            // herramienta, verlas simplemente sustituirse de golpe se sentia brusco. Cada una
+            // entra desde abajo mientras la anterior sale hacia arriba, que es lo que de verdad
+            // transmite "ya he pasado a lo siguiente" en vez de "el texto ha cambiado".
+            AnimatedContent(
+                targetState = label,
+                transitionSpec = {
+                    (slideInVertically { it } + fadeIn())
+                        .togetherWith(slideOutVertically { -it } + fadeOut())
+                },
+                label = "working-label",
+            ) { current ->
+                Text(
+                    text = "$current...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Text(
-                text = "$label...",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        }
+    }
+}
+
+/** Three dots pulsing in sequence, like a typing indicator - not just three static alphas. */
+@Composable
+private fun PulsingDots(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "working-dots")
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(3) { index ->
+            val alpha by
+                transition.animateFloat(
+                    initialValue = 0.3f,
+                    targetValue = 1f,
+                    animationSpec =
+                        infiniteRepeatable(
+                            animation = tween(durationMillis = 600, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse,
+                            initialStartOffset = StartOffset(index * 150),
+                        ),
+                    label = "dot-$index",
+                )
+            Box(
+                Modifier.size(5.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                        shape = RoundedCornerShape(3.dp),
+                    )
             )
         }
     }

@@ -8,6 +8,8 @@ data class AssistantChange(
     val createdAt: LocalDateTime,
     val summary: String,
     val undone: Boolean,
+    /** Null for changes recorded before conversations had an identity of their own. */
+    val conversationId: Long? = null,
 )
 
 /**
@@ -31,6 +33,13 @@ interface ChangeJournal {
     suspend fun snapshot(entryIds: List<Long>): UndoAction
 
     suspend fun recent(limit: Int = 20): List<AssistantChange>
+
+    /**
+     * Just [recent], filtered to one conversation - the Photoshop-style history panel shows only
+     * what happened in the thread it is opened from, not the assistant's entire lifetime.
+     */
+    suspend fun recentForConversation(conversationId: Long, limit: Int = 50): List<AssistantChange> =
+        recent(limit).filter { it.conversationId == conversationId }
 
     /** Reverts [changeId], or the most recent change that is still applied when null. */
     suspend fun undo(changeId: Long? = null): AssistantChange?

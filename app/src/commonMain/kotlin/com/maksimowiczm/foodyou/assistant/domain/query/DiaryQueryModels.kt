@@ -8,7 +8,9 @@ enum class TotalsGrouping {
     Day,
     Weekday,
     Week,
-    Month;
+    Month,
+    /** Buckets by meal (Breakfast/Lunch/...) instead of by date - the range still filters what counts. */
+    Meal;
 
     companion object {
         fun fromWireName(value: String?): TotalsGrouping =
@@ -17,6 +19,7 @@ enum class TotalsGrouping {
                 "weekday", "diasemana" -> Weekday
                 "week", "semana" -> Week
                 "month", "mes" -> Month
+                "meal", "comida" -> Meal
                 else -> Day
             }
     }
@@ -34,6 +37,8 @@ data class PeriodTotals(
     val facts: NutritionFacts,
     val entryCount: Int,
     val eatenCount: Int,
+    /** Set only when grouped by [TotalsGrouping.Meal] - the tool resolves it to a name. */
+    val mealId: Long? = null,
 ) {
     val energy: Double
         get() = facts.energy.value ?: 0.0

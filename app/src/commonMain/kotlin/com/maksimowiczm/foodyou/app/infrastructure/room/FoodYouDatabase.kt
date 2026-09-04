@@ -8,6 +8,7 @@ import androidx.room.immediateTransaction
 import androidx.room.migration.Migration
 import androidx.room.useWriterConnection
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantChangeEntity
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantConversationEntity
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDatabase
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDao
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantMemoryEntity
@@ -18,6 +19,9 @@ import com.maksimowiczm.foodyou.app.infrastructure.room.migration.deleteUsedFood
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.fixMeasurementSuggestions
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.foodYou3Migration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.unlinkDiaryMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addAssistantConversationsMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addComposedManualEntriesMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addManualEntryCategoryMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addDiaryProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addEntryPositionMigration
@@ -50,6 +54,7 @@ import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryRecipeIngredi
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.FoodDiaryDatabase
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.InitializeMealsCallback
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.ManualDiaryEntryEntity
+import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.ManualDiaryEntryIngredientEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.MealEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.MeasurementEntity
 import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipDatabase
@@ -74,8 +79,10 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             SponsorshipEntity::class,
             MeasurementSuggestionEntity::class,
             ManualDiaryEntryEntity::class,
+            ManualDiaryEntryIngredientEntity::class,
             AssistantChangeEntity::class,
             AssistantMemoryEntity::class,
+            AssistantConversationEntity::class,
             ProductFts::class,
             RecipeFts::class,
         ],
@@ -159,7 +166,7 @@ abstract class FoodYouDatabase :
         }
 
     companion object {
-        const val VERSION = 39
+        const val VERSION = 42
 
         private val migrations: List<Migration> =
             listOf(
@@ -182,6 +189,9 @@ abstract class FoodYouDatabase :
                 addDiaryProductCategoriesMigration,
                 addEntryPositionMigration,
                 addProductIdentityAndMealIconMigration,
+                addManualEntryCategoryMigration,
+                addAssistantConversationsMigration,
+                addComposedManualEntriesMigration,
             )
 
         fun Builder<FoodYouDatabase>.buildDatabase(

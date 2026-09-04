@@ -93,8 +93,8 @@ internal class AssistantSettingsViewModel(
         viewModelScope.launch { preferences.setModel(value) }
     }
 
-    fun setVisionModel(value: String) {
-        viewModelScope.launch { preferences.setVisionModel(value) }
+    fun setSupportsVision(value: Boolean) {
+        viewModelScope.launch { preferences.setSupportsVision(value) }
     }
 
     fun setMaxIterations(value: Int) {
@@ -122,6 +122,10 @@ internal class AssistantSettingsViewModel(
                             ConnectionState.Failed(FailureReason.RateLimited, null)
                         is AssistantApiError.Network ->
                             ConnectionState.Failed(FailureReason.Network, error.message)
+                        // listModels() no lo lanza hoy (solo chat() distingue timeout), pero el
+                        // tipo es sellado y comun a los dos: se trata igual que un fallo de red.
+                        is AssistantApiError.Timeout ->
+                            ConnectionState.Failed(FailureReason.Network, "Timeout")
                         is AssistantApiError.Http ->
                             ConnectionState.Failed(FailureReason.Server, "HTTP ${error.status}")
                         is AssistantApiError.NotConfigured ->

@@ -5,6 +5,7 @@ import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntryId
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualEntryIngredient
 import kotlinx.datetime.LocalTime
 
 @Immutable
@@ -63,4 +64,16 @@ internal data class ManualMealEntryModel(
     override val fats: Double?,
     override val isEaten: Boolean = true,
     override val category: FoodCategory = FoodCategory.UNKNOWN,
-) : MealEntryModel
+    /** Marks the row as the assistant's work rather than the person's own quick add. */
+    val createdByAssistant: Boolean = false,
+    /**
+     * What the dish was made of, when it is a composed food.
+     *
+     * Empty for a plain quick add. Non-empty earns the row its own icon and fills the breakdown
+     * shown when it is tapped - one burger in the diary instead of six loose ingredients.
+     */
+    val ingredients: List<ManualEntryIngredient> = emptyList(),
+) : MealEntryModel {
+    val isComposed: Boolean
+        get() = ingredients.isNotEmpty()
+}

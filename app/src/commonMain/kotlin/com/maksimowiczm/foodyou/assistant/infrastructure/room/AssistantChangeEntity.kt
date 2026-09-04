@@ -24,4 +24,7 @@ data class AssistantChangeEntity(
      * something to work with. Null until then.
      */
     val redoPayload: String? = null,
+
+    /** Which conversation made this change. Null on rows recorded before conversations existed. */
+    val conversationId: Long? = null,
 )

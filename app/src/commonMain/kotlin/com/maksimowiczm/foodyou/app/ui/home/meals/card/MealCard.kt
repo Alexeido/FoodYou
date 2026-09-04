@@ -30,7 +30,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.LunchDining
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -62,6 +65,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,9 +78,11 @@ import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCard
 import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCardDefaults
 import com.maksimowiczm.foodyou.common.compose.utility.LocalDateFormatter
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualEntryIngredient
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
 import foodyou.app.generated.resources.*
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 
@@ -481,6 +487,14 @@ private fun BottomSheetContent(
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RectangleShape,
         )
+
+        // Solo los platos compuestos traen desglose. Va justo debajo de la fila y antes de las
+        // acciones porque es lo que se viene a ver al tocar una hamburguesa: que llevaba dentro.
+        if (entry is ManualMealEntryModel && entry.isComposed) {
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            IngredientsSection(entry.ingredients)
+        }
+
         HorizontalDivider(Modifier.padding(horizontal = 16.dp))
         ListItem(
             headlineContent = { Text(stringResource(Res.string.action_edit_entry)) },
@@ -501,6 +515,82 @@ private fun BottomSheetContent(
                     containerColor = Color.Transparent,
                 ),
         )
+    }
+}
+
+/**
+ * What a composed dish was made of, as an expandable list.
+ *
+ * Open by default: it is the reason the sheet was opened. Collapsible anyway because a dish with a
+ * dozen components would otherwise push the edit and delete actions off the bottom of the screen.
+ */
+@Composable
+private fun IngredientsSection(
+    ingredients: List<ManualEntryIngredient>,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+
+    Column(modifier = modifier) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    pluralStringResource(
+                        Res.plurals.description_ingredient_count,
+                        ingredients.size,
+                        ingredients.size,
+                    )
+                )
+            },
+            modifier = Modifier.clickable { expanded = !expanded },
+            leadingContent = {
+                Icon(imageVector = Icons.Outlined.LunchDining, contentDescription = null)
+            },
+            trailingContent = {
+                Icon(
+                    imageVector =
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                ingredients.forEach { ingredient ->
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(start = 56.dp, end = 24.dp, top = 6.dp, bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = ingredient.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        ingredient.grams?.let {
+                            Text(
+                                text = "${it.formatClipZeros("%.1f")} g",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = stringResource(Res.string.description_composed_food_explainer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 56.dp, end = 24.dp, top = 6.dp),
+                )
+            }
+        }
     }
 }
 

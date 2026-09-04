@@ -6,6 +6,16 @@
     <!-- Dictado del asistente. Se pide en caliente, la primera vez que se toca el microfono. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!--
+        Mantiene la app en primer plano mientras el asistente espera al modelo, para que el
+        sistema no cierre la conexion de red al bloquear la pantalla o salir de la app.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Sin este permiso la notificacion del servicio no se ve, pero el servicio sigue
+         funcionando igual: Android permite mantener el primer plano aunque no se muestre nada. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- El reconocedor de voz vive en otra app; sin esto no se puede consultar si existe. -->
     <queries>
         <intent>
@@ -75,6 +85,20 @@
             android:label="DeveloperActivity"
             android:theme="@style/Theme.FoodYou" />
 
+        <!--
+            Deja que la camara escriba la foto del asistente en nuestra cache. Sin esto solo se
+            podria adjuntar desde la galeria, que obliga a hacer la foto fuera de la app primero.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"
@@ -83,6 +107,16 @@
                 android:name="autoStoreLocales"
                 android:value="true" />
         </service>
+
+        <!--
+            No hace nada por si sola: solo mantiene el proceso en primer plano mientras dura una
+            peticion al modelo, para que bloquear la pantalla no tumbe la conexion a mitad de una
+            cadena de herramientas.
+        -->
+        <service
+            android:name=".assistant.infrastructure.AssistantKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

@@ -1,7 +1,5 @@
 package com.maksimowiczm.foodyou.assistant.domain.query
 
-import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
-import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
 
 /**
@@ -10,7 +8,7 @@ import kotlinx.datetime.LocalDate
  * The basis for "where is all this fat coming from" and for "what do I cut to save 300 kcal without
  * losing protein", which is the question the model cannot answer from totals alone.
  */
-class NutrientAttributionUseCase(private val repository: FoodDiaryEntryRepository) {
+class NutrientAttributionUseCase(private val diary: DiaryReader) {
 
     suspend operator fun invoke(
         nutrient: NutrientSelector,
@@ -18,11 +16,11 @@ class NutrientAttributionUseCase(private val repository: FoodDiaryEntryRepositor
         to: LocalDate,
         limit: Int = 10,
     ): List<NutrientContribution> {
-        val entries = repository.observeRange(from, to).first()
+        val entries = diary.range(from, to)
 
         val perFood =
             entries
-                .groupBy { it.food.name }
+                .groupBy { it.name }
                 .map { (name, group) -> name to group.sumOf { nutrient.of(it.nutritionFacts) } }
                 .filter { (_, amount) -> amount > 0.0 }
 

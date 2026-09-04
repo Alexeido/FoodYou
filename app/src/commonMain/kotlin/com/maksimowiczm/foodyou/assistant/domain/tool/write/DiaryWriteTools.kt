@@ -4,6 +4,10 @@ import com.maksimowiczm.foodyou.app.ui.food.diary.add.toDiaryFood
 import com.maksimowiczm.foodyou.assistant.domain.journal.ChangeJournal
 import com.maksimowiczm.foodyou.assistant.domain.journal.EatenState
 import com.maksimowiczm.foodyou.assistant.domain.journal.UndoAction
+import com.maksimowiczm.foodyou.assistant.domain.query.NutrientSelector
+import com.maksimowiczm.foodyou.assistant.domain.tool.gramsFor
+import com.maksimowiczm.foodyou.assistant.domain.tool.targetAmountParam
+import com.maksimowiczm.foodyou.assistant.domain.tool.targetNutrientParam
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.date
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.dateOrNull
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.double
@@ -70,7 +74,9 @@ class AddEntriesTool(
     override val name = "addEntries"
     override val description =
         "Anade alimentos al diario. Los foodId tienen que venir de searchFood. Se anaden SIN " +
-            "marcar como comidos, para que la persona los marque segun se los coma."
+            "marcar como comidos, para que la persona los marque segun se los coma. Cada item " +
+            "acepta una cantidad fija (amount+unit) o un objetivo de nutriente " +
+            "(targetNutrient+targetAmount) para que la cantidad salga calculada, no adivinada."
     override val mutates = true
     override val parameters =
         ToolSchema.obj(
@@ -80,11 +86,18 @@ class AddEntriesTool(
                 ToolSchema.arrayOf(
                     ToolSchema.obj(
                         "foodId" to ToolSchema.integer("El foodId devuelto por searchFood."),
-                        "amount" to ToolSchema.number("Cantidad en la unidad indicada."),
+                        "amount" to
+                            ToolSchema.number(
+                                "Cantidad en la unidad indicada. Omitelo si usas targetNutrient " +
+                                    "en su lugar."
+                            ),
                         "unit" to unitSchema,
-                        required = listOf("foodId", "amount"),
+                        targetNutrientParam,
+                        targetAmountParam,
+                        required = listOf("foodId"),
                     ),
-                    "Los alimentos a anadir.",
+                    "Los alimentos a anadir. Cada uno necesita 'amount' o el par " +
+                        "'targetNutrient'+'targetAmount', no los dos.",
                 ),
             required = listOf("date", "mealId", "items"),
         )
@@ -106,10 +119,24 @@ class AddEntriesTool(
             val foodId = item.longOrNull("foodId") ?: return@forEach
             val product =
                 productRepository.observeProduct(FoodId.Product(foodId)).first() ?: return@forEach
-            val amount = item.doubleOrNull("amount") ?: return@forEach
-
-            val measurement = measurementFrom(item.stringOrNull("unit"), amount, product.isLiquid)
             val food = product.toDiaryFood()
+
+            val amount = item.doubleOrNull("amount")
+            val measurement =
+                if (amount != null) {
+                    measurementFrom(item.stringOrNull("unit"), amount, product.isLiquid)
+                } else {
+                    // Sin amount: la cantidad viene de un objetivo de nutriente ("20 g de
+                    // proteina"), no de un peso que alguien haya dicho. Siempre en gramos: la
+                    // unidad de la que viene el objetivo no tiene por que coincidir con como se
+                    // mide el alimento.
+                    val nutrient =
+                        item.stringOrNull("targetNutrient")?.let(NutrientSelector::fromWireName)
+                            ?: return@forEach
+                    val target = item.doubleOrNull("targetAmount") ?: return@forEach
+                    val grams = food.nutritionFacts.gramsFor(nutrient, target) ?: return@forEach
+                    Measurement.Gram(grams)
+                }
 
             val id =
                 entryRepository.insert(

@@ -163,6 +163,15 @@ private fun DiaryEntry.toMealEntryModel(mealId: Long): MealEntryModel =
                 carbohydrates = nutritionFacts.carbohydrates.value,
                 fats = nutritionFacts.fats.value,
                 isEaten = isEaten,
-                category = FoodCategory.UNKNOWN,
+                // Antes se forzaba UNKNOWN, asi que toda entrada manual salia con el "?" gris
+                // aunque se hubiese guardado una categoria.
+                category =
+                    category
+                        ?.let { name ->
+                            FoodCategory.entries.firstOrNull { it.name == name }
+                        }
+                        ?: FoodCategory.UNKNOWN,
+                createdByAssistant = createdByAssistant,
+                ingredients = ingredients,
             )
     }

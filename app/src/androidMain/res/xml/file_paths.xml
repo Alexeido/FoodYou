@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!--
+        Solo la carpeta donde la camara deja la foto del asistente, dentro de la cache: se lee una
+        vez para codificarla en base64 y el sistema puede borrarla cuando quiera.
+    -->
+    <cache-path
+        name="assistant-photos"
+        path="assistant-photos/" />
+</paths>

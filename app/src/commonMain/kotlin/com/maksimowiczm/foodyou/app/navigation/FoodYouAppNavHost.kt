@@ -12,6 +12,7 @@ import com.maksimowiczm.foodyou.app.ui.database.externaldatabases.ExternalDataba
 import com.maksimowiczm.foodyou.app.ui.database.externaldatabases.UpdateUsdaApiKeyDialog
 import com.maksimowiczm.foodyou.app.ui.database.importcsvproducts.ImportCsvProductsScreen
 import com.maksimowiczm.foodyou.app.ui.assistant.chat.AssistantChatScreen
+import com.maksimowiczm.foodyou.app.ui.assistant.history.AssistantConversationsScreen
 import com.maksimowiczm.foodyou.app.ui.assistant.settings.AssistantSettingsScreen
 import com.maksimowiczm.foodyou.app.ui.database.master.DatabaseSettingsScreen
 import com.maksimowiczm.foodyou.app.ui.database.swissfoodcompositiondatabase.SwissFoodCompositionDatabaseScreen
@@ -101,6 +102,17 @@ fun FoodYouAppNavHost(onDatabaseBackup: () -> Unit, modifier: Modifier = Modifie
             AssistantChatScreen(
                 onBack = { navController.popBackStackInclusive<AssistantChat>() },
                 onOpenSettings = { navController.navigateSingleTop(AssistantSettings) },
+                onOpenConversations = {
+                    navController.navigateSingleTop(AssistantConversationHistory)
+                },
+            )
+        }
+        forwardBackwardComposable<AssistantConversationHistory> {
+            AssistantConversationsScreen(
+                onBack = { navController.popBackStackInclusive<AssistantConversationHistory>() },
+                onOpenConversation = {
+                    navController.popBackStackInclusive<AssistantConversationHistory>()
+                },
             )
         }
         forwardBackwardComposable<AssistantSettings> {
@@ -396,6 +408,8 @@ fun FoodYouAppNavHost(onDatabaseBackup: () -> Unit, modifier: Modifier = Modifie
 @Serializable private object GoalsSetup
 
 @Serializable private object AssistantChat
+
+@Serializable private object AssistantConversationHistory
 
 @Serializable private object AssistantSettings
 

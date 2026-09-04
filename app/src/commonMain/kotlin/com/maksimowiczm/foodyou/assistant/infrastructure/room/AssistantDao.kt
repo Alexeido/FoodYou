@@ -20,6 +20,14 @@ abstract class AssistantDao {
     @Query("SELECT * FROM AssistantChange WHERE id = :id")
     abstract suspend fun changeById(id: Long): AssistantChangeEntity?
 
+    @Query(
+        "SELECT * FROM AssistantChange WHERE conversationId = :conversationId ORDER BY id DESC LIMIT :limit"
+    )
+    abstract suspend fun recentChangesForConversation(
+        conversationId: Long,
+        limit: Int,
+    ): List<AssistantChangeEntity>
+
     @Query("SELECT * FROM AssistantChange WHERE undone = 0 ORDER BY id DESC LIMIT 1")
     abstract suspend fun lastAppliedChange(): AssistantChangeEntity?
 
@@ -37,4 +45,27 @@ abstract class AssistantDao {
 
     @Query("DELETE FROM AssistantMemory WHERE key = :key")
     abstract suspend fun deleteMemory(key: String)
+
+    @Insert abstract suspend fun insertConversation(conversation: AssistantConversationEntity): Long
+
+    @Query(
+        "UPDATE AssistantConversation SET title = COALESCE(title, :title), updatedAt = :updatedAt, " +
+            "turnsJson = :turnsJson, apiMessagesJson = :apiMessagesJson WHERE id = :id"
+    )
+    abstract suspend fun updateConversation(
+        id: Long,
+        title: String?,
+        updatedAt: Long,
+        turnsJson: String,
+        apiMessagesJson: String,
+    )
+
+    @Query("SELECT * FROM AssistantConversation WHERE id = :id")
+    abstract suspend fun conversationById(id: Long): AssistantConversationEntity?
+
+    @Query("SELECT * FROM AssistantConversation ORDER BY updatedAt DESC")
+    abstract fun observeConversations(): Flow<List<AssistantConversationEntity>>
+
+    @Query("DELETE FROM AssistantConversation WHERE id = :id")
+    abstract suspend fun deleteConversation(id: Long)
 }

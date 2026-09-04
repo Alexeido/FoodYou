@@ -23,7 +23,10 @@ import kotlinx.serialization.json.put
  * fiction. Coming through this tool, the macros are the database's and the model only chooses the
  * amount.
  */
-class SearchFoodTool(private val productRepository: ProductRepository) : AssistantTool {
+class SearchFoodTool(
+    private val productRepository: ProductRepository,
+    private val remoteFallback: AssistantRemoteFoodFallback,
+) : AssistantTool {
 
     override val name = "searchFood"
     override val description =
@@ -51,7 +54,16 @@ class SearchFoodTool(private val productRepository: ProductRepository) : Assista
         // Se pide de mas cuando hay que ordenar, para que el orden se aplique sobre un conjunto
         // decente y no solo sobre los ocho primeros que devuelva el indice.
         val fetch = if (sortBy == null) limit else (limit * 4).coerceAtMost(60)
-        val products = productRepository.searchProducts(arguments.string("query"), fetch)
+        val query = arguments.string("query")
+
+        var products = productRepository.searchProducts(query, fetch)
+        if (products.isEmpty()) {
+            // Nadie ha buscado esto antes en la pantalla de busqueda real: el espejo local no
+            // tiene nada que devolver. Se intenta una vez contra las fuentes remotas activadas
+            // antes de rendirse - si no, el modelo cree que el alimento no existe y se lo inventa.
+            remoteFallback.fetchIntoCache(query, pageSize = fetch.coerceAtLeast(24))
+            products = productRepository.searchProducts(query, fetch)
+        }
 
         val ordered =
             if (sortBy == null) products

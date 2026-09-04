@@ -37,6 +37,16 @@ sealed interface UndoAction {
     @Serializable
     @SerialName("batch")
     data class Batch(val actions: List<UndoAction>) : UndoAction
+
+    /** Undo of a manual entry insert: remove the rows that were created. */
+    @Serializable
+    @SerialName("deleteManualEntries")
+    data class DeleteManualEntries(val ids: List<Long>) : UndoAction
+
+    /** Undo of removing manual entries: recreate them. IDs are not preserved on restore. */
+    @Serializable
+    @SerialName("restoreManualEntries")
+    data class RestoreManualEntries(val rows: List<ManualEntrySnapshot>) : UndoAction
 }
 
 /** A Measurement row, flat enough to serialize without touching the food snapshot it points at. */
@@ -56,3 +66,22 @@ data class MeasurementSnapshot(
 )
 
 @Serializable data class EatenState(val id: Long, val isEaten: Boolean)
+
+/**
+ * A ManualDiaryEntry row, flat enough to serialize. Nutrition facts are flattened to plain doubles
+ * since only the four macros a manual entry ever carries need to round-trip.
+ */
+@Serializable
+data class ManualEntrySnapshot(
+    val id: Long,
+    val mealId: Long,
+    val epochDay: Long,
+    val name: String,
+    val kcal: Double,
+    val proteins: Double,
+    val carbohydrates: Double,
+    val fats: Double,
+    val isEaten: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
+)

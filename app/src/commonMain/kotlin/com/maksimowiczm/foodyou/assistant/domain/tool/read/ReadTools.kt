@@ -1,6 +1,7 @@
 package com.maksimowiczm.foodyou.assistant.domain.tool.read
 
 import com.maksimowiczm.foodyou.assistant.domain.query.DailyTotalsUseCase
+import com.maksimowiczm.foodyou.assistant.domain.query.DetailLevel
 import com.maksimowiczm.foodyou.assistant.domain.query.DiaryRangeUseCase
 import com.maksimowiczm.foodyou.assistant.domain.query.MealTimingStatsUseCase
 import com.maksimowiczm.foodyou.assistant.domain.query.NutrientAttributionUseCase
@@ -16,6 +17,8 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.Args.string
 import com.maksimowiczm.foodyou.assistant.domain.tool.Args.stringOrNull
 import com.maksimowiczm.foodyou.assistant.domain.tool.AssistantTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.ToolSchema
+import com.maksimowiczm.foodyou.assistant.domain.tool.detailLevelParam
+import com.maksimowiczm.foodyou.assistant.domain.tool.putNutritionFacts
 import com.maksimowiczm.foodyou.assistant.domain.tool.round1
 import com.maksimowiczm.foodyou.assistant.domain.tool.toolError
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.MealRepository
@@ -37,48 +40,65 @@ private val fromTo =
     )
 
 /** C5. The workhorse: one call answers most questions about a range. */
-class DailyTotalsTool(private val useCase: DailyTotalsUseCase) : AssistantTool {
+class DailyTotalsTool(
+    private val useCase: DailyTotalsUseCase,
+    private val mealRepository: MealRepository,
+) : AssistantTool {
     override val name = "dailyTotals"
     override val description =
         "Totales nutricionales del diario entre dos fechas. Agrupa por dia, dia de la semana, " +
-            "semana o mes. Los dias sin nada registrado tambien salen, con ceros."
+            "semana, mes o comida (desayuno/comida/cena...). Los dias sin nada registrado " +
+            "tambien salen, con ceros."
     override val parameters =
         ToolSchema.obj(
             *fromTo,
             "groupBy" to
                 ToolSchema.string(
                     "Como agrupar. Por defecto day.",
-                    enum = listOf("day", "weekday", "week", "month"),
+                    enum = listOf("day", "weekday", "week", "month", "meal"),
                 ),
             "onlyEaten" to
                 ToolSchema.boolean(
                     "Si es true solo cuenta lo marcado como comido, ignorando lo planificado."
                 ),
+            detailLevelParam,
             required = listOf("from", "to"),
         )
 
     override suspend fun call(arguments: JsonObject): JsonElement {
+        val grouping = TotalsGrouping.fromWireName(arguments.stringOrNull("groupBy"))
+        val level = DetailLevel.fromWireName(arguments.stringOrNull("detailLevel"))
         val totals =
             useCase(
                 from = arguments.date("from"),
                 to = arguments.date("to"),
-                grouping = TotalsGrouping.fromWireName(arguments.stringOrNull("groupBy")),
+                grouping = grouping,
                 onlyEaten =
                     com.maksimowiczm.foodyou.assistant.domain.tool.Args.run {
                         arguments.booleanOrNull("onlyEaten")
                     } ?: false,
             )
 
+        // Solo se piden los nombres si de verdad se va a agrupar por comida - el resto de los
+        // agrupamientos no tocan mealRepository para nada.
+        val mealNames =
+            if (grouping == TotalsGrouping.Meal) {
+                mealRepository.observeMeals().first().associate { it.id to it.name }
+            } else {
+                emptyMap()
+            }
+
         return buildJsonArray {
             totals.forEach { period ->
                 add(
                     buildJsonObject {
-                        put("key", period.key)
-                        put("kcal", period.energy.round1())
-                        put("proteins", (period.facts.proteins.value ?: 0.0).round1())
-                        put("carbohydrates", (period.facts.carbohydrates.value ?: 0.0).round1())
-                        put("fats", (period.facts.fats.value ?: 0.0).round1())
-                        put("fiber", (period.facts.dietaryFiber.value ?: 0.0).round1())
+                        if (period.mealId != null) {
+                            put("mealId", period.mealId)
+                            put("meal", mealNames[period.mealId] ?: period.key)
+                        } else {
+                            put("key", period.key)
+                        }
+                        putNutritionFacts(period.facts, level)
                         put("entries", period.entryCount)
                         put("eaten", period.eatenCount)
                     }
@@ -272,22 +292,36 @@ class MealTimingStatsTool(private val useCase: MealTimingStatsUseCase) : Assista
     }
 }
 
-/** The raw entries, for when a total is not enough. */
-class DiaryRangeTool(private val useCase: DiaryRangeUseCase) : AssistantTool {
+/**
+ * The raw entries, for when a total is not enough.
+ *
+ * Nested day -> meal -> items rather than a flat list: the model almost always wants "what did I
+ * eat today", which is naturally a day of meals, not a table it has to group itself. Each item
+ * carries both what was actually eaten (the real portion) and `per100g` alongside it - a reference
+ * so the model can recompute for a different amount without a second call back to searchFood.
+ */
+class DiaryRangeTool(
+    private val useCase: DiaryRangeUseCase,
+    private val mealRepository: MealRepository,
+) : AssistantTool {
     override val name = "diaryRange"
     override val description =
-        "Las entradas del diario entre dos fechas, con su id. Necesitas el id de una entrada para " +
-            "poder cambiarla o borrarla."
+        "Las entradas del diario entre dos fechas, con su id. Necesitas el id de una entrada " +
+            "para poder cambiarla o borrarla. Sale anidado por dia y comida. Cada alimento lleva " +
+            "sus macros reales (para lo que se comio) y ademas 'per100g' de referencia, por si " +
+            "hace falta recalcular para otra cantidad."
     override val parameters =
         ToolSchema.obj(
             *fromTo,
             "mealId" to ToolSchema.integer("Restringe a una comida."),
             "onlyEaten" to
                 ToolSchema.boolean("true solo lo comido, false solo lo planificado sin marcar."),
+            detailLevelParam,
             required = listOf("from", "to"),
         )
 
     override suspend fun call(arguments: JsonObject): JsonElement {
+        val level = DetailLevel.fromWireName(arguments.stringOrNull("detailLevel"))
         val entries =
             useCase(
                 from = arguments.date("from"),
@@ -298,20 +332,33 @@ class DiaryRangeTool(private val useCase: DiaryRangeUseCase) : AssistantTool {
                         arguments.booleanOrNull("onlyEaten")
                     },
             )
+        val mealNames = mealRepository.observeMeals().first().associate { it.id to it.name }
 
-        return buildJsonArray {
-            entries.forEach { entry ->
-                add(
-                    buildJsonObject {
-                        put("entryId", entry.id.value)
-                        put("date", entry.date.toString())
-                        put("mealId", entry.mealId)
-                        put("name", entry.food.name)
-                        put("grams", entry.weight.round1())
-                        put("kcal", (entry.nutritionFacts.energy.value ?: 0.0).round1())
-                        put("isEaten", entry.isEaten)
+        // Orden estable: dia, luego comida en el orden en que devuelve el use case (fecha,
+        // mealId, posicion) - agrupar aqui no lo cambia, solo lo anida.
+        return buildJsonObject {
+            entries.groupBy { it.date }.forEach { (date, ofDay) ->
+                putJsonObject(date.toString()) {
+                    ofDay.groupBy { it.mealId }.forEach { (mealId, ofMeal) ->
+                        val mealName = mealNames[mealId] ?: "mealId $mealId"
+                        putJsonArray(mealName) {
+                            ofMeal.forEach { entry ->
+                                add(
+                                    buildJsonObject {
+                                        put("entryId", entry.id.value)
+                                        put("name", entry.food.name)
+                                        put("grams", entry.weight.round1())
+                                        putNutritionFacts(entry.nutritionFacts, level)
+                                        putJsonObject("per100g") {
+                                            putNutritionFacts(entry.food.nutritionFacts, level)
+                                        }
+                                        put("isEaten", entry.isEaten)
+                                    }
+                                )
+                            }
+                        }
                     }
-                )
+                }
             }
         }
     }
@@ -355,7 +402,18 @@ class GoalsTool(private val goalsRepository: GoalsRepository) : AssistantTool {
     override suspend fun call(arguments: JsonObject): JsonElement {
         val goal = goalsRepository.observeDailyGoals(arguments.date("date")).first()
         return buildJsonObject {
+            // Energia y los tres macros NO estan en `goal.map`: viven aparte, en
+            // `macronutrientGoal`, y `map` los excluye explicitamente. Leyendo solo el mapa, que
+            // es lo que se hacia antes, el asistente veia decenas de micronutrientes y era incapaz
+            // de decir cuantas kcal o cuanta proteina tenia por objetivo la persona.
             putJsonObject("targets") {
+                put("kcal", goal.macronutrientGoal.energyKcal.round1())
+                put("proteins", goal.macronutrientGoal.proteinsGrams.round1())
+                put("carbohydrates", goal.macronutrientGoal.carbohydratesGrams.round1())
+                put("fats", goal.macronutrientGoal.fatsGrams.round1())
+            }
+            // El resto va aparte para que no ahogue a los cuatro que de verdad se preguntan.
+            putJsonObject("micronutrientTargets") {
                 goal.map.forEach { (field, value) -> put(field.name, value.round1()) }
             }
         }

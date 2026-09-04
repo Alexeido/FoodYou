@@ -2,6 +2,7 @@ package com.maksimowiczm.foodyou.assistant.infrastructure.openai
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -40,6 +41,18 @@ data class ToolCall(
     val id: String,
     val type: String = "function",
     val function: FunctionCall,
+    /**
+     * Opaque provider metadata riding along the call - `ignoreUnknownKeys` would otherwise drop it
+     * silently on the way in, and it would just as silently never go back out.
+     *
+     * Gemini's "thinking" models (3.x) put a `google.thought_signature` here and reject the next
+     * request with `HTTP 400: Function call is missing a thought_signature` the moment a later turn
+     * replays this same tool call without it - which happens on every turn after the first, since
+     * the agent loop always resends the full history. Kept as an untyped [JsonElement] rather than
+     * modelling Google's shape: the point is to echo back exactly what was received, from whichever
+     * provider, not to understand it.
+     */
+    @SerialName("extra_content") val extraContent: JsonElement? = null,
 )
 
 @Serializable

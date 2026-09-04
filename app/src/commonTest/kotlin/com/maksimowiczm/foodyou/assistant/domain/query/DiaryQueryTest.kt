@@ -13,6 +13,9 @@ import kotlinx.datetime.LocalDateTime
  * user has no way to tell. That is why the expected values below are written as literals rather
  * than computed the same way the production code computes them.
  */
+private fun diary(repo: com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository) =
+    DiaryReader(repo, NoManualEntries)
+
 class DiaryQueryTest {
 
     // 100 g of chicken: 165 kcal, 31 P, 0 C, 3,6 F
@@ -46,7 +49,7 @@ class DiaryQueryTest {
 
     @Test
     fun dailyTotalsSumsEachDay() = runTest {
-        val totals = DailyTotalsUseCase(repository)(from = monday, to = tuesday)
+        val totals = DailyTotalsUseCase(diary(repository))(from = monday, to = tuesday)
 
         assertEquals(2, totals.size)
         assertEquals(525.0, totals[0].energy, 0.001)
@@ -58,7 +61,7 @@ class DiaryQueryTest {
     @Test
     fun dailyTotalsIncludesDaysWithNothingLogged() = runTest {
         // "que dias me pase" tiene que poder ver un dia vacio, no saltarselo.
-        val totals = DailyTotalsUseCase(repository)(from = monday, to = day("2026-08-27"))
+        val totals = DailyTotalsUseCase(diary(repository))(from = monday, to = day("2026-08-27"))
 
         assertEquals(4, totals.size)
         assertEquals(0.0, totals[2].energy, 0.001)
@@ -67,9 +70,9 @@ class DiaryQueryTest {
 
     @Test
     fun dailyTotalsCanIgnoreWhatIsNotEatenYet() = runTest {
-        val all = DailyTotalsUseCase(repository)(from = saturday, to = saturday)
+        val all = DailyTotalsUseCase(diary(repository))(from = saturday, to = saturday)
         val eatenOnly =
-            DailyTotalsUseCase(repository)(from = saturday, to = saturday, onlyEaten = true)
+            DailyTotalsUseCase(diary(repository))(from = saturday, to = saturday, onlyEaten = true)
 
         assertEquals(176.8, all.single().energy, 0.001)
         // El sabado solo hay una entrada planificada: contando solo lo comido, el dia es cero.
@@ -82,7 +85,7 @@ class DiaryQueryTest {
             FakeDiaryRepository(diary + entry(day("2026-09-01"), "Arroz largo", rice, 100.0))
 
         val totals =
-            DailyTotalsUseCase(extended)(
+            DailyTotalsUseCase(diary(extended))(
                 from = monday,
                 to = day("2026-09-30"),
                 grouping = TotalsGrouping.Month,
@@ -95,7 +98,7 @@ class DiaryQueryTest {
     @Test
     fun dailyTotalsGroupsByWeekday() = runTest {
         val totals =
-            DailyTotalsUseCase(repository)(
+            DailyTotalsUseCase(diary(repository))(
                 from = monday,
                 to = saturday,
                 grouping = TotalsGrouping.Weekday,
@@ -110,7 +113,7 @@ class DiaryQueryTest {
 
     @Test
     fun topFoodsRanksByHowOftenItWasLogged() = runTest {
-        val top = TopFoodsUseCase(repository)(from = monday, to = saturday)
+        val top = TopFoodsUseCase(diary(repository))(from = monday, to = saturday)
 
         assertEquals("Pechuga de pollo", top[0].name)
         assertEquals(2, top[0].times)
@@ -123,7 +126,7 @@ class DiaryQueryTest {
 
     @Test
     fun topFoodsCanBeNarrowedToOneMeal() = runTest {
-        val top = TopFoodsUseCase(repository)(from = monday, to = saturday, mealId = 2L)
+        val top = TopFoodsUseCase(diary(repository))(from = monday, to = saturday, mealId = 2L)
 
         assertEquals(1, top.size)
         assertEquals("Aceite de oliva", top.single().name)
@@ -134,7 +137,7 @@ class DiaryQueryTest {
     @Test
     fun nutrientAttributionPointsAtTheRealCulprit() = runTest {
         val contributions =
-            NutrientAttributionUseCase(repository)(
+            NutrientAttributionUseCase(diary(repository))(
                 nutrient = NutrientSelector.Fats,
                 from = monday,
                 to = saturday,
@@ -150,7 +153,7 @@ class DiaryQueryTest {
     @Test
     fun nutrientAttributionIsEmptyWhenNobodyContributes() = runTest {
         val contributions =
-            NutrientAttributionUseCase(repository)(
+            NutrientAttributionUseCase(diary(repository))(
                 nutrient = NutrientSelector.DietaryFiber,
                 from = monday,
                 to = saturday,
@@ -163,7 +166,7 @@ class DiaryQueryTest {
 
     @Test
     fun searchDiaryFindsMostRecentFirst() = runTest {
-        val hits = SearchDiaryUseCase(repository)("aceite", from = monday, to = saturday)
+        val hits = SearchDiaryUseCase(diary(repository))("aceite", from = monday, to = saturday)
 
         assertEquals(2, hits.size)
         assertEquals(saturday, hits.first().date)
@@ -172,7 +175,7 @@ class DiaryQueryTest {
 
     @Test
     fun searchDiaryIgnoresBlankQueries() = runTest {
-        assertTrue(SearchDiaryUseCase(repository)("   ", from = monday, to = saturday).isEmpty())
+        assertTrue(SearchDiaryUseCase(diary(repository))("   ", from = monday, to = saturday).isEmpty())
     }
 
     // ------------------------------------------------------------ C2 topBrands
@@ -189,7 +192,7 @@ class DiaryQueryTest {
                 )
             )
 
-        val brands = TopBrandsUseCase(branded)(from = monday, to = saturday)
+        val brands = TopBrandsUseCase(diary(branded))(from = monday, to = saturday)
 
         assertEquals(2, brands.size)
         assertEquals("Hacendado", brands[0].brand)
@@ -217,8 +220,8 @@ class DiaryQueryTest {
                 )
             )
 
-        val totals = DailyTotalsUseCase(twice)(from = monday, to = monday)
-        val top = TopFoodsUseCase(twice)(from = monday, to = monday)
+        val totals = DailyTotalsUseCase(diary(twice))(from = monday, to = monday)
+        val top = TopFoodsUseCase(diary(twice))(from = monday, to = monday)
 
         assertEquals(330.0, totals.single().energy, 0.001)
         assertEquals(2, top.single().times)

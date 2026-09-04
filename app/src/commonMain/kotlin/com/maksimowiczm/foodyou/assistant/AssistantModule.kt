@@ -2,6 +2,7 @@ package com.maksimowiczm.foodyou.assistant
 
 import com.maksimowiczm.foodyou.assistant.domain.query.DailyTotalsUseCase
 import com.maksimowiczm.foodyou.assistant.domain.query.DiaryRangeUseCase
+import com.maksimowiczm.foodyou.assistant.domain.query.DiaryReader
 import com.maksimowiczm.foodyou.assistant.domain.query.MealTimingStatsUseCase
 import com.maksimowiczm.foodyou.assistant.domain.query.NutrientAttributionUseCase
 import com.maksimowiczm.foodyou.assistant.domain.query.SearchDiaryUseCase
@@ -15,6 +16,8 @@ import com.maksimowiczm.foodyou.assistant.domain.AgentLoop
 import com.maksimowiczm.foodyou.assistant.domain.AssistantCredentialsRepository
 import com.maksimowiczm.foodyou.assistant.domain.AssistantMemoryRepository
 import com.maksimowiczm.foodyou.assistant.domain.SystemPromptBuilder
+import com.maksimowiczm.foodyou.assistant.domain.AssistantConversationRepository
+import com.maksimowiczm.foodyou.assistant.infrastructure.RoomAssistantConversationRepository
 import com.maksimowiczm.foodyou.assistant.infrastructure.RoomAssistantMemoryRepository
 import com.maksimowiczm.foodyou.assistant.domain.AssistantPreferences
 import com.maksimowiczm.foodyou.assistant.domain.pad.AssistantPad
@@ -25,6 +28,7 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.pad.PadFromDayTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.pad.PadRemoveTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.pad.PadTotalsTool
 import com.maksimowiczm.foodyou.assistant.infrastructure.DataStoreAssistantPreferences
+import com.maksimowiczm.foodyou.assistant.infrastructure.assistantKeepAliveDefinition
 import com.maksimowiczm.foodyou.assistant.infrastructure.openai.OpenAiCompatibleClient
 import com.maksimowiczm.foodyou.common.infrastructure.assistant.SafeAssistantCredentialsRepository
 import io.ktor.client.HttpClient
@@ -42,12 +46,14 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.read.DiaryRangeTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.GoalsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.ListMealsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.MealTimingStatsTool
+import com.maksimowiczm.foodyou.assistant.domain.tool.read.AssistantRemoteFoodFallback
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.NutrientAttributionTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.SearchDiaryTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.SearchFoodTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.TopBrandsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.TopFoodsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.AddEntriesTool
+import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateComposedEntryTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateManualEntryTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.DeleteEntriesTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.HistoryTool
@@ -56,6 +62,7 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.write.SetEatenTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.UndoTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.UpdateEntryTool
 import com.maksimowiczm.foodyou.app.ui.assistant.chat.AssistantChatViewModel
+import com.maksimowiczm.foodyou.app.ui.assistant.history.AssistantConversationsViewModel
 import com.maksimowiczm.foodyou.app.ui.assistant.settings.AssistantSettingsViewModel
 import com.maksimowiczm.foodyou.assistant.domain.ConversationStore
 import org.koin.core.module.dsl.factoryOf
@@ -66,6 +73,9 @@ import org.koin.dsl.onClose
 
 /** Wiring for the assistant feature. Aggregated from AppModule like every other feature. */
 fun Module.assistantModule() {
+    assistantKeepAliveDefinition()
+
+    factoryOf(::DiaryReader)
     factoryOf(::DailyTotalsUseCase)
     factoryOf(::DiaryRangeUseCase)
     factoryOf(::TopFoodsUseCase)
@@ -86,6 +96,7 @@ fun Module.assistantModule() {
     factoryOf(::MealTimingStatsTool)
     factoryOf(::ListMealsTool)
     factoryOf(::GoalsTool)
+    factoryOf(::AssistantRemoteFoodFallback)
     factoryOf(::SearchFoodTool)
 
     // Herramientas de escritura
@@ -94,6 +105,7 @@ fun Module.assistantModule() {
     factoryOf(::DeleteEntriesTool)
     factoryOf(::SetEatenTool)
     factoryOf(::CreateManualEntryTool)
+    factoryOf(::CreateComposedEntryTool)
 
     // Historial
     factoryOf(::HistoryTool)
@@ -116,7 +128,13 @@ fun Module.assistantModule() {
     }
     single(named("assistantHttpClient")) {
             HttpClient {
-                install(HttpTimeout)
+                install(HttpTimeout) {
+                    // Sin esto, el motor (OkHttp en Android) aplica su propio limite de ~10s,
+                    // insuficiente para un modelo de razonamiento en una cadena de herramientas.
+                    requestTimeoutMillis = 90_000
+                    connectTimeoutMillis = 15_000
+                    socketTimeoutMillis = 90_000
+                }
                 install(ContentNegotiation) {
                     json(
                         Json {
@@ -149,7 +167,11 @@ fun Module.assistantModule() {
     factoryOf(::AgentLoop)
 
     single { ConversationStore() }
+    single<AssistantConversationRepository> {
+        RoomAssistantConversationRepository(get(), get(named("assistantJson")))
+    }
     viewModelOf(::AssistantChatViewModel)
+    viewModelOf(::AssistantConversationsViewModel)
     viewModelOf(::AssistantSettingsViewModel)
 
     factoryOf(::ToolRegistryFactory)
@@ -176,6 +198,8 @@ fun Module.assistantModule() {
         RoomChangeJournal(
             dao = get(),
             measurementDao = get(),
+            manualRepository = get(),
+            conversationStore = get(),
             json = get(org.koin.core.qualifier.named("assistantJson")),
         )
     }

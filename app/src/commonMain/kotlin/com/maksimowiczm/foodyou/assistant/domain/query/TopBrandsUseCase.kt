@@ -1,8 +1,6 @@
 package com.maksimowiczm.foodyou.assistant.domain.query
 
 import com.maksimowiczm.foodyou.app.ui.food.component.parseHeadlineBrand
-import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
-import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
 
 /**
@@ -10,16 +8,17 @@ import kotlinx.datetime.LocalDate
  *
  * The diary stores an embedded snapshot whose name already carries the brand in "Name (Brand)"
  * form, so the brand is recovered with the same parser the UI uses rather than by joining back to
- * the product table - which would miss every entry whose product has since been purged.
+ * the product table - which would miss every entry whose product has since been purged. A manual
+ * entry's name never has that shape, so it simply contributes no brand - harmless to include.
  */
-class TopBrandsUseCase(private val repository: FoodDiaryEntryRepository) {
+class TopBrandsUseCase(private val diary: DiaryReader) {
 
     suspend operator fun invoke(from: LocalDate, to: LocalDate, limit: Int = 10): List<BrandFrequency> {
-        val entries = repository.observeRange(from, to).first()
+        val entries = diary.range(from, to)
 
         return entries
             .mapNotNull { entry ->
-                val brand = parseHeadlineBrand(entry.food.name).second?.trim()
+                val brand = parseHeadlineBrand(entry.name).second?.trim()
                 if (brand.isNullOrEmpty()) null else brand to entry
             }
             .groupBy({ it.first }, { it.second })

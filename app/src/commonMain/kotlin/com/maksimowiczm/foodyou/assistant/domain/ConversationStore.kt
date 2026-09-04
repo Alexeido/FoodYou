@@ -4,8 +4,10 @@ import com.maksimowiczm.foodyou.assistant.infrastructure.openai.Message
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
 
 /** What the chat shows: one turn as the screen renders it, not as the API sees it. */
+@Serializable
 data class ChatTurn(
     val id: Long,
     val role: Role,
@@ -15,9 +17,16 @@ data class ChatTurn(
     /** Set when this turn changed the diary, so the undo button can live beside it. */
     val changeId: Long? = null,
     val undone: Boolean = false,
-    val hasImage: Boolean = false,
+    /**
+     * The attached photo, base64-encoded, so the thread can show what was actually sent.
+     *
+     * Kept beside the text rather than only as a boolean flag: a conversation where you scroll back
+     * and cannot see which photo you sent is impossible to reason about.
+     */
+    val imageBase64: String? = null,
     val error: ChatError? = null,
 ) {
+    @Serializable
     enum class Role {
         User,
         Assistant,
@@ -25,8 +34,11 @@ data class ChatTurn(
 }
 
 /** Errors the chat distinguishes, because "the key was rejected" is not "I do not know". */
+@Serializable
 enum class ChatError {
     Unauthorized,
+    /** Offers a "Continue" button - a stalled reasoning chain usually just needs a nudge forward. */
+    Timeout,
     Other,
 }
 
@@ -34,13 +46,21 @@ enum class ChatError {
  * The live conversation, kept outside the ViewModel so it survives leaving the screen.
  *
  * Planning a week means going out to look at the diary and coming back, and losing the thread on the
- * way would make that flow unusable. In memory only: a conversation is worth keeping for the length
- * of a session, not forever.
+ * way would make that flow unusable. Holds exactly one conversation at a time - the one currently
+ * open - but which one that is can change: [restore] swaps in a different, previously saved
+ * conversation loaded from the history screen, and [conversationId] is what the change journal
+ * stamps onto every diary edit so the Photoshop-style history panel can show only this thread's own
+ * changes. Persisting the conversation itself to disk is the view model's job, not this class's -
+ * this is just the in-memory shape the screen renders from.
  */
 class ConversationStore {
 
     private val _turns = MutableStateFlow<List<ChatTurn>>(emptyList())
     val turns: StateFlow<List<ChatTurn>> = _turns.asStateFlow()
+
+    /** Null for a conversation that has not been saved yet - the very first message of a new one. */
+    private val _conversationId = MutableStateFlow<Long?>(null)
+    val conversationId: StateFlow<Long?> = _conversationId.asStateFlow()
 
     /** The API-shaped history, which is what the loop actually replays. */
     private val apiMessages = mutableListOf<Message>()
@@ -71,10 +91,25 @@ class ConversationStore {
         apiMessages.add(message)
     }
 
+    /** Assigns the id a brand-new conversation was just given when its first turn was saved. */
+    fun assignConversationId(id: Long) {
+        _conversationId.value = id
+    }
+
+    /** Swaps in a conversation loaded from storage, replacing everything currently held. */
+    fun restore(id: Long, turns: List<ChatTurn>, apiMessages: List<Message>) {
+        _turns.value = turns
+        this.apiMessages.clear()
+        this.apiMessages.addAll(apiMessages)
+        nextId = (turns.maxOfOrNull { it.id } ?: 0) + 1
+        _conversationId.value = id
+    }
+
     fun clear() {
         _turns.value = emptyList()
         apiMessages.clear()
         nextId = 1
+        _conversationId.value = null
     }
 
     val isEmpty: Boolean

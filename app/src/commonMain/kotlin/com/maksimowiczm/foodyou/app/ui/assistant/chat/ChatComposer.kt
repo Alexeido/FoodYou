@@ -1,5 +1,6 @@
 package com.maksimowiczm.foodyou.app.ui.assistant.chat
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -29,9 +33,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.maksimowiczm.foodyou.common.compose.image.PickedImage
+import com.maksimowiczm.foodyou.common.compose.image.decodeBase64Image
 import com.maksimowiczm.foodyou.common.compose.image.rememberImagePicker
 import com.maksimowiczm.foodyou.common.compose.speech.rememberDictationController
 import foodyou.app.generated.resources.*
@@ -65,12 +72,24 @@ internal fun ChatComposer(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        if (attached != null) {
+        attached?.let { photo ->
             Row(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                // Se ve la foto antes de enviarla: "Foto adjunta" a secas no permite comprobar
+                // que la elegida es la que se queria.
+                val preview = remember(photo.base64) { decodeBase64Image(photo.base64) }
+                if (preview != null) {
+                    Image(
+                        bitmap = preview,
+                        contentDescription =
+                            stringResource(Res.string.description_assistant_photo_attached),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)),
+                    )
+                }
                 Text(
                     text = stringResource(Res.string.description_assistant_photo_attached),
                     style = MaterialTheme.typography.labelMedium,
@@ -120,15 +139,46 @@ internal fun ChatComposer(
 
                 // La camara solo existe si hay modelo con vision Y la plataforma sabe elegir foto.
                 if (showCamera && picker.isAvailable) {
-                    ComposerAction(
-                        onClick = picker::pick,
-                        icon = {
-                            Icon(
-                                Icons.Outlined.PhotoCamera,
-                                stringResource(Res.string.action_attach_photo),
+                    Box {
+                        var sourceMenuOpen by remember { mutableStateOf(false) }
+                        ComposerAction(
+                            // Con camara disponible se pregunta primero: el caso normal del
+                            // asistente es fotografiar lo que tienes delante, no rebuscar en la
+                            // galeria una foto que habria que haber hecho antes desde otra app.
+                            onClick = {
+                                if (picker.canTakePhoto) sourceMenuOpen = true else picker.pick()
+                            },
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.PhotoCamera,
+                                    stringResource(Res.string.action_attach_photo),
+                                )
+                            },
+                        )
+                        DropdownMenu(
+                            expanded = sourceMenuOpen,
+                            onDismissRequest = { sourceMenuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.action_take_photo)) },
+                                leadingIcon = { Icon(Icons.Outlined.PhotoCamera, null) },
+                                onClick = {
+                                    sourceMenuOpen = false
+                                    picker.takePhoto()
+                                },
                             )
-                        },
-                    )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(stringResource(Res.string.action_choose_from_gallery))
+                                },
+                                leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, null) },
+                                onClick = {
+                                    sourceMenuOpen = false
+                                    picker.pick()
+                                },
+                            )
+                        }
+                    }
                 }
 
                 if (dictation.isAvailable) {

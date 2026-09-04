@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.LunchDining
+import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -40,6 +42,7 @@ import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
 import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategoryIcon
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
 import foodyou.app.generated.resources.*
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -164,6 +167,9 @@ internal fun MealFoodListItem(
         measurementText = null,
         isEaten = entry.isEaten,
         isQuickAdded = true,
+        isFromAssistant = entry.createdByAssistant,
+        isComposed = entry.isComposed,
+        ingredientCount = entry.ingredients.size,
         onToggleEaten = { onToggleEaten(entry) },
         color = color,
         contentColor = contentColor,
@@ -191,6 +197,9 @@ private fun CompactDiaryRow(
     measurementText: String?,
     isEaten: Boolean,
     isQuickAdded: Boolean,
+    isFromAssistant: Boolean = false,
+    isComposed: Boolean = false,
+    ingredientCount: Int = 0,
     onToggleEaten: () -> Unit,
     color: Color,
     contentColor: Color,
@@ -231,7 +240,28 @@ private fun CompactDiaryRow(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (isQuickAdded) {
+                    // El plato compuesto lleva su propio icono ademas del de autoria: dice que
+                    // detras de esta fila hay varios ingredientes, y que tocarla los enseña.
+                    if (isComposed) {
+                        Icon(
+                            imageVector = Icons.Outlined.LunchDining,
+                            contentDescription =
+                                stringResource(Res.string.description_composed_food),
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(16.dp).padding(start = 2.dp),
+                        )
+                    }
+                    // Distingue quien lo puso: el rayo es el anadido rapido de la persona, el
+                    // robot marca lo que anadio el asistente y conviene revisar.
+                    if (isFromAssistant) {
+                        Icon(
+                            imageVector = Icons.Outlined.SmartToy,
+                            contentDescription =
+                                stringResource(Res.string.description_added_by_assistant),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp).padding(start = 2.dp),
+                        )
+                    } else if (isQuickAdded) {
                         Icon(
                             imageVector = Icons.Outlined.Bolt,
                             contentDescription = null,
@@ -285,6 +315,20 @@ private fun CompactDiaryRow(
                             Text(dot)
                             Text(
                                 text = measurementText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        } else if (isComposed) {
+                            // Una entrada manual no tiene medida que enseñar, asi que el hueco lo
+                            // ocupa lo unico que aqui aporta algo: cuantas cosas lleva dentro.
+                            Text(dot)
+                            Text(
+                                text =
+                                    pluralStringResource(
+                                        Res.plurals.description_ingredient_count,
+                                        ingredientCount,
+                                        ingredientCount,
+                                    ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )

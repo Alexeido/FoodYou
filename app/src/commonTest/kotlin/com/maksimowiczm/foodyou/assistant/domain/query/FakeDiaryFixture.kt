@@ -9,7 +9,11 @@ import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodProduct
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.RecentMealRef
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntry
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntryId
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualEntryIngredient
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
+import com.maksimowiczm.foodyou.fooddiary.domain.repository.ManualDiaryEntryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.datetime.LocalDate
@@ -113,3 +117,36 @@ internal fun entry(
 )
 
 internal fun day(iso: String): LocalDate = LocalDate.parse(iso)
+
+/** No manual entries anywhere - these tests are only about the product/recipe side. */
+internal object NoManualEntries : ManualDiaryEntryRepository {
+    override fun observe(id: ManualDiaryEntryId): Flow<ManualDiaryEntry?> = flowOf(null)
+
+    override fun observeAll(mealId: Long, date: LocalDate): Flow<List<ManualDiaryEntry>> =
+        flowOf(emptyList())
+
+    override fun observeRange(from: LocalDate, to: LocalDate): Flow<List<ManualDiaryEntry>> =
+        flowOf(emptyList())
+
+    override suspend fun insert(
+        name: String,
+        mealId: Long,
+        date: LocalDate,
+        nutritionFacts: NutritionFacts,
+        createdAt: LocalDateTime,
+        category: String?,
+        isEaten: Boolean,
+        createdByAssistant: Boolean,
+        ingredients: List<ManualEntryIngredient>,
+    ): ManualDiaryEntryId = error("not needed by these tests")
+
+    override suspend fun update(entry: ManualDiaryEntry) = error("not needed by these tests")
+
+    override suspend fun delete(id: ManualDiaryEntryId) = error("not needed by these tests")
+
+    override suspend fun updatePositions(updates: List<Pair<ManualDiaryEntryId, Int>>) =
+        error("not needed by these tests")
+
+    override suspend fun moveToMeal(id: ManualDiaryEntryId, targetMealId: Long, date: LocalDate) =
+        error("not needed by these tests")
+}

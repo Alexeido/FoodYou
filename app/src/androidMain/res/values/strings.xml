@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name" translatable="false">Food You</string>
+    <string name="notification_channel_assistant">Asistente</string>
+    <string name="notification_assistant_working">El asistente está trabajando…</string>
 </resources>

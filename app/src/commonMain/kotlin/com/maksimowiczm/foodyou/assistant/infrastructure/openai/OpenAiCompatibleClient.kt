@@ -5,6 +5,7 @@ import com.maksimowiczm.foodyou.assistant.domain.AssistantPreferences
 import com.maksimowiczm.foodyou.common.log.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -24,6 +25,14 @@ sealed interface AssistantApiError {
 
     data class Http(val status: Int, val body: String) : AssistantApiError
 
+    /**
+     * The request just didn't get an answer in time - a reasoning model mid tool-call chain can
+     * easily outrun 90 s. Kept apart from [Network] because the useful response is different: a
+     * dropped connection or a wrong URL need fixing, but a timeout usually just needs the same
+     * turn nudged forward, which is why the chat offers a "Continue" button only for this one.
+     */
+    data object Timeout : AssistantApiError
+
     data class Network(val message: String) : AssistantApiError
 
     data object NotConfigured : AssistantApiError
@@ -35,6 +44,7 @@ class AssistantApiException(val error: AssistantApiError) :
             is AssistantApiError.Unauthorized -> "API key rejected"
             is AssistantApiError.RateLimited -> "Rate limited"
             is AssistantApiError.Http -> "HTTP ${error.status}. ${error.body}"
+            is AssistantApiError.Timeout -> "Request timed out"
             is AssistantApiError.Network -> error.message
             is AssistantApiError.NotConfigured -> "Assistant not configured"
         }
@@ -65,7 +75,16 @@ class OpenAiCompatibleClient(
                     contentType(ContentType.Application.Json)
                     setBody(request)
                 }
+            } catch (e: HttpRequestTimeoutException) {
+                throw AssistantApiException(AssistantApiError.Timeout)
             } catch (e: Exception) {
+                // HttpRequestTimeoutException cubre el timeout de la propia peticion (Ktor), pero
+                // el de conexion o el de socket los lanza el motor (OkHttp en Android) con su
+                // propia excepcion, que no es parte de la API comun de Ktor. Se detecta por el
+                // nombre en vez de por tipo para no acoplarse a una clase de un motor concreto.
+                if (e::class.simpleName?.contains("Timeout", ignoreCase = true) == true) {
+                    throw AssistantApiException(AssistantApiError.Timeout)
+                }
                 logger.e(TAG, e) { "Chat request failed" }
                 throw AssistantApiException(AssistantApiError.Network(e.message ?: "sin conexion"))
             }

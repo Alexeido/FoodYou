@@ -13,8 +13,23 @@ data class PickedImage(val base64: String, val mimeType: String) {
 interface ImagePickerController {
     val isAvailable: Boolean
 
+    /** Whether this device can take a photo right now, as opposed to only picking an existing one. */
+    val canTakePhoto: Boolean
+        get() = false
+
     fun pick()
+
+    /** Opens the camera. Falls back to [pick] where taking a photo is not supported. */
+    fun takePhoto() = pick()
 }
+
+/**
+ * Decodes what [rememberImagePicker] produced back into something drawable.
+ *
+ * Returns null when the platform cannot decode it, so callers fall back to a caption instead of
+ * crashing on a corrupt or unsupported payload.
+ */
+expect fun decodeBase64Image(base64: String): androidx.compose.ui.graphics.ImageBitmap?
 
 /**
  * Picks a photo and hands back base64.
