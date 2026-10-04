@@ -40,6 +40,18 @@ Gradle modules are intentionally kept minimal (see
 Targets: `androidTarget`, `iosArm64`, `iosSimulatorArm64`. Android is the primary/only actively
 tested target in CI.
 
+Outside the KMP app:
+
+- `wear` — Wear OS companion (plain Android + Wear Compose). Pairs with a sync account through a
+  6-digit code and talks to the sync server directly. Build: `./gradlew :wear:assembleDebug`.
+- `sync-server/` — self-hosted sync server (FastAPI + SQLite, Python), with a web admin panel and
+  OAuth for the MCP. Tests: `python -m pytest` inside it.
+- `mcp-server/` — MCP server giving AI assistants read/write access to the diary through the sync
+  server. Tests run the sync server in-process.
+- `docs/sync/protocol.md` — the sync protocol (document kinds, last-writer-wins per field) shared by
+  the app's `sync` package, the watch and the MCP. Keep it in step with
+  `sync/infrastructure/SyncLocalStore.kt`.
+
 ## Architecture
 
 ### Feature-based, layered packages

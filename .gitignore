@@ -31,7 +31,7 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 ./claude/*
 
-# Experimentos, scraping y servidores propios: viven fuera del repo
+# Experimentos y servidores propios: viven fuera del repo y nunca deben volver aqui.
 /server/
 /docs/raspberry-server/
 .env
@@ -40,3 +40,8 @@ captures
 data/*.db
 *.sqlite
 *.sqlite3
+
+# Capturas de las sesiones de pruebas manuales. Se generan al automatizar el
+# emulador y solo sirven para ilustrar el documento de pruebas mientras se hace:
+# no son fuente ni se versionan.
+docs/testing/screenshots/
