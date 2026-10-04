@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Nueva cuenta · Food You{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/admin">Cuentas</a> / nueva</p>
+    <h1>Nueva cuenta</h1>
+    <p class="lede">Con este usuario y contraseña se activa la sincronización en la app (Ajustes → Sincronización).</p>
+  </div>
+</div>
+{% if error %}<div class="notice bad" role="alert">{{ error }}</div>{% endif %}
+<div class="card" style="max-width: 560px;">
+  <form class="stack" method="post" action="/admin/accounts/new">
+    <label>Usuario
+      <input type="text" name="username" value="{{ form.username or '' }}" autocomplete="off" required>
+    </label>
+    <label>Contraseña
+      <span class="hint">Sin tildes ni eñes: la app las rechaza.</span>
+      <input type="password" name="password" autocomplete="new-password" required>
+    </label>
+    <label>Nota
+      <textarea name="note" placeholder="De quién es la cuenta">{{ form.note or '' }}</textarea>
+    </label>
+    <div class="row"><button class="btn" type="submit">Crear cuenta</button></div>
+  </form>
+</div>
+{% endblock %}

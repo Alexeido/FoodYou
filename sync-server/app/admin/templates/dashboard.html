@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "charts.html" as c %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Food You · sincronización</p>
+    <h1>Cuentas</h1>
+    <p class="lede">
+      {{ c.plural(totals.accounts, "cuenta", "cuentas") }} ·
+      {{ c.plural(totals.syncing, "sincronizando esta semana", "sincronizando esta semana") }} ·
+      {{ c.plural(totals.mcp_accounts, "con acceso MCP", "con acceso MCP") }}
+    </p>
+  </div>
+  <a class="btn" href="/admin/accounts/new">
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Nueva cuenta
+  </a>
+</div>
+
+<section class="stats" aria-label="Resumen">
+  <div class="stat">
+    <span class="label">Sincronizaciones · 30 días</span>
+    <span class="value">{{ totals.syncs_24h }}<small>en 24 h</small></span>
+    <div class="viz">{{ c.bars(daily, "sincronización", "sincronizaciones", ends=(daily.points[0].label, "hoy")) }}</div>
+  </div>
+  <div class="stat">
+    <span class="label">Documentos guardados</span>
+    <span class="value">{{ "{:,}".format(totals.documents).replace(",", ".") }}</span>
+    <span class="note">Comidas, entradas del diario y entradas rápidas de todas las cuentas.</span>
+  </div>
+  <div class="stat">
+    <span class="label">Cuentas activas esta semana</span>
+    <span class="value">{{ totals.syncing }}<small>de {{ totals.accounts }}</small></span>
+  </div>
+  <div class="stat">
+    <span class="label">Con acceso MCP</span>
+    <span class="value">{{ totals.mcp_accounts }}</span>
+    <span class="note">Pueden dar a un asistente acceso a su diario.</span>
+  </div>
+</section>
+
+<section class="card">
+  <div class="table-wrap">
+    <table class="wide">
+      <thead>
+        <tr>
+          <th>Cuenta</th>
+          <th>Permisos</th>
+          <th class="num">Documentos</th>
+          <th class="num">Dispositivos</th>
+          <th class="num">Sinc. 24 h</th>
+          <th>Última vez</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="user-cell">
+            <a href="/admin/accounts/{{ r.id }}">{{ r.username }}</a>
+            {% if r.note %}<div class="muted small">{{ r.note }}</div>{% endif %}
+          </td>
+          <td>
+            <div class="pills">
+              {% if not r.is_active %}<span class="pill bad">Desactivada</span>{% endif %}
+              {% if r.is_admin %}<span class="pill accent">Admin</span>{% endif %}
+              {% if r.mcp_enabled %}<span class="pill ok">MCP{% if r.mcp_tokens %} · {{ r.mcp_tokens }}{% endif %}</span>{% endif %}
+            </div>
+          </td>
+          <td class="num">{{ r.docs }}</td>
+          <td class="num">{{ r.devices }}</td>
+          <td class="num">{{ r.syncs_24h }}</td>
+          <td>{{ r.last_seen|ago }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="faint small" style="margin: 14px 0 0;">
+    Este panel no enseña el contenido de los diarios: solo quién sincroniza y cuánto.
+  </p>
+</section>
+{% endblock %}

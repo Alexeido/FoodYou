@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Sincronización · Food You{% endblock %}</title>
+  <link rel="preload" href="/admin/static/fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/admin/static/fonts/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/admin/static/admin.css?v={{ asset_version }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c2613f'/%3E%3Cpath d='M10 22V10h12M10 16h8' stroke='%23fffefb' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  {% block body %}
+  {% if admin %}
+  <header class="topbar">
+    <a class="wordmark" href="/admin"><b>Food You</b><span>sincronización</span></a>
+    <nav aria-label="Panel">
+      <a href="/admin" {% if section == "users" %}aria-current="page"{% endif %}>Usuarios</a>
+      <a href="/admin/account" {% if section == "account" %}aria-current="page"{% endif %}>Mi cuenta</a>
+      <span class="who">{{ admin.username }}</span>
+      <form method="post" action="/admin/logout"><button type="submit">Salir</button></form>
+    </nav>
+  </header>
+  {% endif %}
+  <main>
+    {% if admin and admin.password_is_default %}
+    <div class="notice bad" role="alert">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 15 14H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3.5M8 11.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>Sigues con la contraseña inicial y el panel está abierto a internet. <a href="/admin/account">Cámbiala ahora</a>.</span>
+    </div>
+    {% endif %}
+    {% if flash %}
+    <div class="notice ok" role="status">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8.5 3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>{{ flash }}</span>
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% endblock %}
+  <script src="/admin/static/admin.js?v={{ asset_version }}" defer></script>
+</body>
+</html>
