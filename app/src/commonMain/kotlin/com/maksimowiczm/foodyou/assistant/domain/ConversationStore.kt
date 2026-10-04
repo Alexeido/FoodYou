@@ -70,6 +70,16 @@ class ConversationStore {
 
     private var nextId = 1L
 
+    /**
+     * True once the person asked for a blank chat with "new conversation". Without it, an empty store
+     * only means the app has just started, and the chat should pick up where it was left.
+     */
+    private var emptyOnPurpose = false
+
+    /** Nothing open and nobody asked for a blank chat: the last saved conversation should come back. */
+    val shouldResumeLast: Boolean
+        get() = !emptyOnPurpose && _conversationId.value == null && _turns.value.isEmpty()
+
     fun addTurn(turn: ChatTurn): ChatTurn {
         val withId = turn.copy(id = nextId++)
         _turns.value = _turns.value + withId
@@ -103,13 +113,16 @@ class ConversationStore {
         this.apiMessages.addAll(apiMessages)
         nextId = (turns.maxOfOrNull { it.id } ?: 0) + 1
         _conversationId.value = id
+        emptyOnPurpose = false
     }
 
+    /** Starts a blank conversation, on purpose: it is not replaced by the last one on reopening. */
     fun clear() {
         _turns.value = emptyList()
         apiMessages.clear()
         nextId = 1
         _conversationId.value = null
+        emptyOnPurpose = true
     }
 
     val isEmpty: Boolean

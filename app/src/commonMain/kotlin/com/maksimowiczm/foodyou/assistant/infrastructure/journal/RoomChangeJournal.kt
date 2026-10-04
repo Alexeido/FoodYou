@@ -6,11 +6,16 @@ import com.maksimowiczm.foodyou.assistant.domain.journal.ChangeJournal
 import com.maksimowiczm.foodyou.assistant.domain.journal.EatenState
 import com.maksimowiczm.foodyou.assistant.domain.journal.ManualEntrySnapshot
 import com.maksimowiczm.foodyou.assistant.domain.journal.MeasurementSnapshot
+import com.maksimowiczm.foodyou.assistant.domain.journal.RecipeIngredientSnapshot
+import com.maksimowiczm.foodyou.assistant.domain.journal.RecipeSnapshot
 import com.maksimowiczm.foodyou.assistant.domain.journal.UndoAction
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantChangeEntity
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDao
 import com.maksimowiczm.foodyou.common.domain.food.NutrientValue
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFacts
+import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeDao
+import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeEntity
+import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeIngredientEntity
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.ManualDiaryEntryRepository
@@ -28,6 +33,7 @@ import kotlinx.serialization.json.Json
 class RoomChangeJournal(
     private val dao: AssistantDao,
     private val measurementDao: MeasurementDao,
+    private val recipeDao: RecipeDao,
     private val manualRepository: ManualDiaryEntryRepository,
     private val conversationStore: ConversationStore,
     private val json: Json,
@@ -128,7 +134,34 @@ class RoomChangeJournal(
 
             is UndoAction.RestoreManualEntries ->
                 UndoAction.DeleteManualEntries(action.rows.map { it.id })
+
+            is UndoAction.DeleteRecipes ->
+                UndoAction.RestoreRecipes(action.ids.mapNotNull { recipeSnapshot(it) })
+
+            is UndoAction.RestoreRecipes -> UndoAction.DeleteRecipes(action.rows.map { it.id })
         }
+
+    private suspend fun recipeSnapshot(id: Long): RecipeSnapshot? {
+        val recipe = recipeDao.getRecipe(id) ?: return null
+        return RecipeSnapshot(
+            id = recipe.id,
+            name = recipe.name,
+            servings = recipe.servings,
+            note = recipe.note,
+            isLiquid = recipe.isLiquid,
+            isFavorite = recipe.isFavorite,
+            category = recipe.category,
+            ingredients =
+                recipeDao.getRecipeIngredients(id).map {
+                    RecipeIngredientSnapshot(
+                        productId = it.ingredientProductId,
+                        recipeId = it.ingredientRecipeId,
+                        measurement = it.measurement,
+                        quantity = it.quantity,
+                    )
+                },
+        )
+    }
 
     private suspend fun apply(action: UndoAction) {
         when (action) {
@@ -171,6 +204,34 @@ class RoomChangeJournal(
                         }
                     }
                 }
+
+            is UndoAction.DeleteRecipes -> action.ids.forEach { recipeDao.deleteById(it) }
+
+            is UndoAction.RestoreRecipes ->
+                action.rows.forEach { row ->
+                    // Explicit id: @Insert keeps it, so the recipe comes back as the same one.
+                    recipeDao.insertRecipeWithIngredients(
+                        recipe =
+                            RecipeEntity(
+                                id = row.id,
+                                name = row.name,
+                                servings = row.servings,
+                                note = row.note,
+                                isLiquid = row.isLiquid,
+                                isFavorite = row.isFavorite,
+                                category = row.category,
+                            ),
+                        ingredients =
+                            row.ingredients.map {
+                                RecipeIngredientEntity(
+                                    ingredientProductId = it.productId,
+                                    ingredientRecipeId = it.recipeId,
+                                    measurement = it.measurement,
+                                    quantity = it.quantity,
+                                )
+                            },
+                    )
+                }
         }
     }
 }
@@ -198,6 +259,7 @@ internal fun MeasurementEntity.toSnapshot() =
         createdAt = createdAt,
         updatedAt = updatedAt,
         position = position,
+        createdByAssistant = createdByAssistant,
     )
 
 internal fun ManualDiaryEntry.toSnapshot(): ManualEntrySnapshot {
@@ -230,4 +292,5 @@ internal fun MeasurementSnapshot.toEntity() =
         createdAt = createdAt,
         updatedAt = updatedAt,
         position = position,
+        createdByAssistant = createdByAssistant,
     )

@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
@@ -68,6 +69,16 @@ object Args {
 
     fun JsonObject.objects(key: String): List<JsonObject> =
         (this[key] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
+
+    /** Non-blank strings of an array argument; a model that sends a bare string gets a list of one. */
+    fun JsonObject.strings(key: String): List<String> =
+        when (val value = this[key]) {
+            // contentOrNull y no content: JsonNull tambien es un JsonPrimitive, y su content es
+            // la palabra "null" - que acabaria buscandose como si fuera un alimento.
+            is JsonArray -> value.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim() }
+            is JsonPrimitive -> listOfNotNull(value.contentOrNull?.trim())
+            else -> emptyList()
+        }.filter { it.isNotBlank() }
 
     fun JsonObject.longs(key: String): List<Long> =
         (this[key] as? JsonArray)?.mapNotNull { element ->

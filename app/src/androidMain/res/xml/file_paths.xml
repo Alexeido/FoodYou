@@ -7,4 +7,8 @@
     <cache-path
         name="assistant-photos"
         path="assistant-photos/" />
+    <!-- El APK que descarga el actualizador, para que el instalador del sistema pueda leerlo. -->
+    <cache-path
+        name="updates"
+        path="updates/" />
 </paths>

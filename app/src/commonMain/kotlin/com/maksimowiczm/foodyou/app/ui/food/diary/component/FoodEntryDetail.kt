@@ -29,7 +29,8 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -154,20 +155,6 @@ internal fun FoodEntryDetailScaffold(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (canUnpack) {
-                    ExtendedFloatingActionButton(
-                        onClick = { if (isValid) onUnpack() },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.CallSplit,
-                                contentDescription = null,
-                            )
-                        },
-                        text = { Text(stringResource(Res.string.action_unpack)) },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
                 FloatingActionButton(
                     onClick = { if (isValid) onConfirm() },
                     shape = CircleShape,
@@ -175,6 +162,22 @@ internal fun FoodEntryDetailScaffold(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
                     Icon(imageVector = confirmIcon, contentDescription = confirmDescription)
+                }
+                // A secondary action: a compact button under save, so it is save that stands out and
+                // the extra one sits at the very bottom of the screen.
+                if (canUnpack) {
+                    FilledTonalButton(
+                        onClick = { if (isValid) onUnpack() },
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.CallSplit,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(Res.string.action_unpack))
+                    }
                 }
             }
         }
@@ -189,7 +192,7 @@ internal fun FoodEntryDetailScaffold(
             contentPadding =
                 paddingValues.add(vertical = 8.dp).let {
                     if (canUnpack) {
-                        it.add(bottom = 8.dp + 56.dp + 8.dp + 56.dp + 24.dp) // Double FAB
+                        it.add(bottom = 8.dp + 40.dp + 8.dp + 56.dp + 24.dp) // Button + FAB
                     } else {
                         it.add(bottom = 56.dp + 24.dp) // FAB
                     }
@@ -404,8 +407,12 @@ private fun SectionCard(
     }
 }
 
+/**
+ * kcal and the three macros for the current amount. Each cell is editable: typing a value sets the
+ * amount that gives it, which is how "I want 30 g of protein" is answered.
+ */
 @Composable
-private fun MacroSummaryRow(
+internal fun MacroSummaryRow(
     ui: FoodDetailUi,
     measurementState: MeasurementPickerState,
     modifier: Modifier = Modifier,

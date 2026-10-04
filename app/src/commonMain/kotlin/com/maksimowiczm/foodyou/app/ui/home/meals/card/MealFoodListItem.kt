@@ -14,7 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.LunchDining
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -126,6 +126,8 @@ internal fun MealFoodListItem(
         measurementText = measurementString,
         isEaten = entry.isEaten,
         isQuickAdded = false,
+        isFromAssistant = entry.createdByAssistant,
+        isRecipe = entry.isRecipe,
         onToggleEaten = { onToggleEaten(entry) },
         color = color,
         contentColor = contentColor,
@@ -184,10 +186,12 @@ internal fun MealFoodListItem(
  *
  * Deliberately not built on the shared
  * [com.maksimowiczm.foodyou.app.ui.common.component.FoodListItem]: that one spreads the same data
- * over three lines and is still used by the recipe and goals screens.
+ * over three lines and is still used by the recipe and goals screens. Also used for the ingredients
+ * of a recipe entry, so a dish's parts look like the diary they came from; there [onToggleEaten] is
+ * null (no checkbox) and [onClick] opens the ingredient's editor.
  */
 @Composable
-private fun CompactDiaryRow(
+internal fun CompactDiaryRow(
     name: String,
     category: FoodCategory,
     energy: Int,
@@ -199,12 +203,14 @@ private fun CompactDiaryRow(
     isQuickAdded: Boolean,
     isFromAssistant: Boolean = false,
     isComposed: Boolean = false,
+    isRecipe: Boolean = false,
     ingredientCount: Int = 0,
-    onToggleEaten: () -> Unit,
+    onToggleEaten: (() -> Unit)?,
     color: Color,
     contentColor: Color,
     shape: Shape,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     val palette = LocalNutrientsPalette.current
     val (displayName, brand) = remember(name) { splitFoodName(name) }
@@ -212,7 +218,10 @@ private fun CompactDiaryRow(
 
     Surface(modifier = modifier, color = color, contentColor = contentColor, shape = shape) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -241,10 +250,11 @@ private fun CompactDiaryRow(
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     // El plato compuesto lleva su propio icono ademas del de autoria: dice que
-                    // detras de esta fila hay varios ingredientes, y que tocarla los enseña.
-                    if (isComposed) {
+                    // detras de esta fila hay varios ingredientes, y que tocarla los enseña. Lo
+                    // mismo para una receta: el libro la distingue de un producto suelto.
+                    if (isComposed || isRecipe) {
                         Icon(
-                            imageVector = Icons.Outlined.LunchDining,
+                            imageVector = Icons.AutoMirrored.Outlined.MenuBook,
                             contentDescription =
                                 stringResource(Res.string.description_composed_food),
                             tint = MaterialTheme.colorScheme.secondary,
@@ -337,7 +347,9 @@ private fun CompactDiaryRow(
                 }
             }
 
-            EatenCheckbox(checked = isEaten, onToggle = onToggleEaten)
+            if (onToggleEaten != null) {
+                EatenCheckbox(checked = isEaten, onToggle = onToggleEaten)
+            }
         }
     }
 }

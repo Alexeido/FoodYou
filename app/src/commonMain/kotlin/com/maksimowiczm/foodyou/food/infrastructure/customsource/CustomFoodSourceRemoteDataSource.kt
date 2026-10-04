@@ -2,6 +2,8 @@ package com.maksimowiczm.foodyou.food.infrastructure.customsource
 
 import com.maksimowiczm.foodyou.common.config.NetworkConfig
 import com.maksimowiczm.foodyou.common.log.Logger
+import com.maksimowiczm.foodyou.common.domain.search.SearchOrigin
+import com.maksimowiczm.foodyou.common.system.InstallationId
 import com.maksimowiczm.foodyou.food.domain.entity.RemoteFoodException
 import com.maksimowiczm.foodyou.food.infrastructure.customsource.model.CustomFoodPageResponse
 import com.maksimowiczm.foodyou.food.infrastructure.customsource.model.CustomFoodProduct
@@ -10,6 +12,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.basicAuth
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.userAgent
@@ -29,6 +32,7 @@ internal class CustomFoodSourceRemoteDataSource(
     private val client: HttpClient,
     private val networkConfig: NetworkConfig,
     private val logger: Logger,
+    private val installationId: InstallationId,
 ) {
     suspend fun getProduct(
         barcode: String,
@@ -37,10 +41,13 @@ internal class CustomFoodSourceRemoteDataSource(
         password: String,
     ): Result<CustomFoodProduct> =
         try {
+            val origin = searchOrigin()
             val response =
                 client.get("$baseUrl/api/v2/product/$barcode") {
                     userAgent(networkConfig.userAgent)
                     basicAuth(username, password)
+                    installationId.get()?.let { header(DEVICE_ID_HEADER, it) }
+                    origin?.let { header(ORIGIN_HEADER, it) }
                 }
 
             when (response.status) {
@@ -78,10 +85,13 @@ internal class CustomFoodSourceRemoteDataSource(
         password: String,
     ): CustomFoodPageResponse =
         try {
+            val origin = searchOrigin()
             val response =
                 client.get("$baseUrl/search") {
                     userAgent(networkConfig.userAgent)
                     basicAuth(username, password)
+                    installationId.get()?.let { header(DEVICE_ID_HEADER, it) }
+                    origin?.let { header(ORIGIN_HEADER, it) }
                     parameter("query", query)
                     parameter("page", page)
                     parameter("page_size", pageSize)
@@ -103,6 +113,9 @@ internal class CustomFoodSourceRemoteDataSource(
             }
         }
 
+    /** Set by the in-app assistant around its searches; none means the person searched by hand. */
+    private suspend fun searchOrigin(): String? = currentCoroutineContext()[SearchOrigin]?.value
+
     private fun <T> handleException(e: Exception): Result<T> =
         when (e) {
             is RemoteFoodException -> {
@@ -118,5 +131,14 @@ internal class CustomFoodSourceRemoteDataSource(
 
     private companion object {
         private const val TAG = "CustomFoodSourceRemoteDataSource"
+
+        /**
+         * Lets the server owner see how many installs use one account (and block one). Without
+         * it, a server that requires it rejects the request as not coming from the app.
+         */
+        private const val DEVICE_ID_HEADER = "X-Device-Id"
+
+        /** Lets the server owner tell manual searches from the assistant's. */
+        private const val ORIGIN_HEADER = "X-Search-Origin"
     }
 }

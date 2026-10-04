@@ -20,10 +20,13 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.round1
 import com.maksimowiczm.foodyou.assistant.domain.tool.targetAmountParam
 import com.maksimowiczm.foodyou.assistant.domain.tool.targetNutrientParam
 import com.maksimowiczm.foodyou.assistant.domain.tool.toolError
+import com.maksimowiczm.foodyou.assistant.domain.tool.write.findRecipe
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.common.extension.now
+import com.maksimowiczm.foodyou.food.domain.entity.Food
 import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.repository.ProductRepository
+import com.maksimowiczm.foodyou.food.domain.repository.RecipeRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDateTime
@@ -88,18 +91,22 @@ class PadFromDayTool(
 class PadAddTool(
     private val pad: AssistantPad,
     private val productRepository: ProductRepository,
+    private val recipeRepository: RecipeRepository,
 ) : AssistantTool {
 
     override val name = "padAdd"
     override val description =
-        "Anade un alimento al borrador. El foodId tiene que venir de searchFood. Devuelve un ref " +
+        "Anade un alimento o una receta al borrador. El foodId o el recipeId tienen que venir " +
+            "de searchFood. Devuelve un ref " +
             "que sirve para quitarlo luego. Acepta una cantidad fija (amount+unit) o un objetivo " +
             "de nutriente (targetNutrient+targetAmount) para que la cantidad salga calculada."
     override val parameters =
         ToolSchema.obj(
             "date" to ToolSchema.date("Dia del borrador."),
             "mealId" to ToolSchema.integer("Comida a la que iria."),
-            "foodId" to ToolSchema.integer("El foodId de searchFood."),
+            "foodId" to ToolSchema.integer("Un producto: el foodId de searchFood."),
+            "recipeId" to
+                ToolSchema.integer("Una receta de la persona: el recipeId de searchFood."),
             "amount" to
                 ToolSchema.number(
                     "Cantidad. Omitelo si usas targetNutrient en su lugar."
@@ -107,14 +114,22 @@ class PadAddTool(
             "unit" to ToolSchema.string("Unidad. Por defecto gramos, o mililitros si es liquido."),
             targetNutrientParam,
             targetAmountParam,
-            required = listOf("date", "mealId", "foodId"),
+            required = listOf("date", "mealId"),
         )
 
     override suspend fun call(arguments: JsonObject): JsonElement {
-        val foodId = arguments.long("foodId")
-        val product =
-            productRepository.observeProduct(FoodId.Product(foodId)).first()
-                ?: return toolError("No existe el foodId $foodId. Buscalo con searchFood.")
+        val recipeId = arguments.longOrNull("recipeId")
+        val foodId = if (recipeId == null) arguments.longOrNull("foodId") else null
+        val product: Food =
+            when {
+                recipeId != null ->
+                    recipeRepository.findRecipe(recipeId)
+                        ?: return toolError("No existe el recipeId $recipeId. Buscalo con searchFood.")
+                foodId != null ->
+                    productRepository.observeProduct(FoodId.Product(foodId)).first()
+                        ?: return toolError("No existe el foodId $foodId. Buscalo con searchFood.")
+                else -> return toolError("Indica 'foodId' (un producto) o 'recipeId' (una receta).")
+            }
         val food = product.toDiaryFood()
 
         val amount = arguments.doubleOrNull("amount")
@@ -144,6 +159,7 @@ class PadAddTool(
                 date = arguments.date("date"),
                 name = product.headline,
                 foodId = foodId,
+                recipeId = recipeId,
                 measurement = measurement,
                 facts = food.nutritionFacts * (grams / 100),
                 grams = grams,
@@ -235,6 +251,7 @@ class PadTotalsTool(private val pad: AssistantPad) : AssistantTool {
 class PadCommitTool(
     private val pad: AssistantPad,
     private val productRepository: ProductRepository,
+    private val recipeRepository: RecipeRepository,
     private val entryRepository: FoodDiaryEntryRepository,
     private val journal: ChangeJournal,
 ) : AssistantTool {
@@ -253,9 +270,12 @@ class PadCommitTool(
 
         val created = mutableListOf<Long>()
         proposed.forEach { item ->
-            val foodId = item.foodId ?: return@forEach
-            val product =
-                productRepository.observeProduct(FoodId.Product(foodId)).first() ?: return@forEach
+            val product: Food =
+                item.recipeId?.let { recipeRepository.findRecipe(it) }
+                    ?: item.foodId?.let {
+                        productRepository.observeProduct(FoodId.Product(it)).first()
+                    }
+                    ?: return@forEach
 
             val id =
                 entryRepository.insert(
@@ -264,6 +284,7 @@ class PadCommitTool(
                     date = item.date,
                     food = product.toDiaryFood(),
                     createdAt = LocalDateTime.now(),
+                    createdByAssistant = true,
                 )
             created.add(id.value)
         }

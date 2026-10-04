@@ -46,6 +46,7 @@ internal class FakeDiaryRepository(private val entries: List<FoodDiaryEntry>) :
         date: LocalDate,
         food: DiaryFood,
         createdAt: LocalDateTime,
+        createdByAssistant: Boolean,
     ): FoodDiaryEntryId = error("not needed by these tests")
 
     override suspend fun update(entry: FoodDiaryEntry) = error("not needed by these tests")

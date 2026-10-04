@@ -64,6 +64,7 @@ internal class RoomFoodDiaryEntryRepository(
                     createdAt = createdAt,
                     updatedAt = updatedAt,
                     position = entity.position,
+                    createdByAssistant = entity.createdByAssistant,
                 )
             }
         }
@@ -97,6 +98,7 @@ internal class RoomFoodDiaryEntryRepository(
                                 createdAt = createdAt,
                                 updatedAt = updatedAt,
                                 position = entity.position,
+                                createdByAssistant = entity.createdByAssistant,
                             )
                         }
                     }
@@ -129,6 +131,7 @@ internal class RoomFoodDiaryEntryRepository(
         date: LocalDate,
         food: DiaryFood,
         createdAt: LocalDateTime,
+        createdByAssistant: Boolean,
     ): FoodDiaryEntryId =
         database.immediateTransaction {
             val recipeId = run {
@@ -166,6 +169,7 @@ internal class RoomFoodDiaryEntryRepository(
                     createdAt = createdAtSeconds,
                     updatedAt = createdAtSeconds,
                     position = position,
+                    createdByAssistant = createdByAssistant,
                 )
 
             dao.insertMeasurement(entity).toFoodDiaryEntryId()
@@ -252,6 +256,7 @@ internal class RoomFoodDiaryEntryRepository(
             createdAt = Instant.fromEpochSeconds(createdAt).toLocalDateTime(zone),
             updatedAt = Instant.fromEpochSeconds(updatedAt).toLocalDateTime(zone),
             position = position,
+            createdByAssistant = createdByAssistant,
         )
     }
 
@@ -308,6 +313,7 @@ internal class RoomFoodDiaryEntryRepository(
                         ingredients = ingredients,
                         isLiquid = entity.isLiquid,
                         note = entity.note,
+                        category = entity.category,
                     )
                 }
             }
@@ -326,6 +332,7 @@ internal class RoomFoodDiaryEntryRepository(
                 servings = diaryRecipe.servings,
                 isLiquid = diaryRecipe.isLiquid,
                 note = diaryRecipe.note,
+                category = diaryRecipe.category,
             )
 
         val recipeId = dao.insertDiaryRecipe(recipe)

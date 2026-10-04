@@ -177,17 +177,47 @@ interface FoodSearchDao {
     )
     fun observeFoodCountByBarcode(barcode: String, source: FoodSourceType?): Flow<Int>
 
-    /* Favorites-specific queries */
+    /*
+     * Favorites-specific queries.
+     *
+     * Recipes are always the user's own, so they only belong to "any source" or to the user
+     * source. And only the ones actually marked: the query versions used to list every recipe
+     * matching the text, favourite or not.
+     */
     @Query(
         """
-        SELECT $PRODUCT_FOOD_SEARCH_SQL_SELECT, NULL AS measurementType, NULL AS measurementValue
-        FROM Product p
+        WITH ProductsSearch AS (
+            SELECT $PRODUCT_FOOD_SEARCH_SQL_SELECT
+            FROM Product p
             WHERE
                 p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        ),
+        RecipesSearch AS (
+            SELECT $RECIPE_FOOD_SEARCH_SQL_SELECT
+            FROM Recipe r
+            WHERE
+                r.isFavorite = 1 AND
+                (:source IS NULL OR :source = ${FoodSourceTypeSQLConstants.USER}) AND
+                (:excludedRecipeId IS NULL OR r.id != :excludedRecipeId) AND
+                (:excludedRecipeId IS NULL OR NOT EXISTS (
+                    SELECT 1
+                    FROM RecipeAllIngredientsView rai
+                    WHERE rai.targetRecipeId = r.id 
+                    AND rai.ingredientId = :excludedRecipeId
+                ))
+        )
+        SELECT *, NULL AS measurementType, NULL AS measurementValue
+        FROM ProductsSearch
+        UNION ALL
+        SELECT *, NULL AS measurementType, NULL AS measurementValue
+        FROM RecipesSearch
         ORDER BY headline COLLATE NOCASE ASC
         """
     )
-    fun observeFavorites(source: com.maksimowiczm.foodyou.common.infrastructure.room.FoodSourceType?): PagingSource<Int, FoodSearch>
+    fun observeFavorites(
+        source: FoodSourceType?,
+        excludedRecipeId: Long?,
+    ): PagingSource<Int, FoodSearch>
 
     @Query(
         """
@@ -201,8 +231,9 @@ interface FoodSearchDao {
             SELECT $RECIPE_FOOD_SEARCH_SQL_SELECT
             FROM Recipe r JOIN RecipeFts fts ON r.id = fts.rowid
             WHERE
-                -- All recipes are from the user
-                :source = ${FoodSourceTypeSQLConstants.USER} AND
+                -- All recipes are from the user; only the ones marked as favourite
+                r.isFavorite = 1 AND
+                (:source IS NULL OR :source = ${FoodSourceTypeSQLConstants.USER}) AND
                 (RecipeFts MATCH :query || '*') AND
                 (:excludedRecipeId IS NULL OR r.id != :excludedRecipeId) AND
                 (:excludedRecipeId IS NULL OR NOT EXISTS (
@@ -244,13 +275,24 @@ interface FoodSearchDao {
 
     @Query(
         """
-        SELECT COUNT(*)
-        FROM Product p
-            WHERE
-                p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source)
+        SELECT
+            (SELECT COUNT(*) FROM Product p
+                WHERE p.isFavorite = 1 AND (:source IS NULL OR p.sourceType = :source))
+            +
+            (SELECT COUNT(*) FROM Recipe r
+                WHERE
+                    r.isFavorite = 1 AND
+                    (:source IS NULL OR :source = ${FoodSourceTypeSQLConstants.USER}) AND
+                (:excludedRecipeId IS NULL OR r.id != :excludedRecipeId) AND
+                (:excludedRecipeId IS NULL OR NOT EXISTS (
+                    SELECT 1
+                    FROM RecipeAllIngredientsView rai
+                    WHERE rai.targetRecipeId = r.id 
+                    AND rai.ingredientId = :excludedRecipeId
+                )))
         """
     )
-    fun observeFavoritesCount(source: FoodSourceType?): Flow<Int>
+    fun observeFavoritesCount(source: FoodSourceType?, excludedRecipeId: Long?): Flow<Int>
 
     @Query(
         """
@@ -264,8 +306,9 @@ interface FoodSearchDao {
             SELECT 1
             FROM Recipe r JOIN RecipeFts fts ON r.id = fts.rowid
             WHERE
-                -- All recipes are from the user
-                :source = ${FoodSourceTypeSQLConstants.USER} AND
+                -- All recipes are from the user; only the ones marked as favourite
+                r.isFavorite = 1 AND
+                (:source IS NULL OR :source = ${FoodSourceTypeSQLConstants.USER}) AND
                 (RecipeFts MATCH :query || '*') AND
                 (:excludedRecipeId IS NULL OR r.id != :excludedRecipeId) AND
                 (:excludedRecipeId IS NULL OR NOT EXISTS (
@@ -605,7 +648,7 @@ NULL AS phosphorusMilli,
 NULL AS seleniumMicro,
 NULL AS iodineMicro,
 NULL AS chromiumMicro,
-NULL AS isFavorite,
+r.isFavorite AS isFavorite,
 NULL AS categories,
 NULL AS totalWeight,
 NULL AS servingWeight

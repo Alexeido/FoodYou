@@ -82,7 +82,7 @@ private fun FoodSearchApp(
     onSearch: (String?) -> Unit,
     onSourceChange: (FoodFilter.Source) -> Unit,
     onFavoritesChange: (Boolean) -> Unit,
-    onToggleFavorite: (FoodId.Product, Boolean) -> Unit,
+    onToggleFavorite: (FoodId, Boolean) -> Unit,
     onFoodClick: (FoodSearch, Measurement) -> Unit,
     onUpdateUsdaApiKey: () -> Unit,
     onAlternativeDb: () -> Unit,
@@ -284,6 +284,9 @@ private fun FoodSearchApp(
                                     measurement = measurement,
                                     onClick = { onFoodClick(food, measurement) },
                                     shimmer = shimmer,
+                                    onToggleFavorite = { id, newState ->
+                                        onToggleFavorite(id, newState)
+                                    },
                                 )
                             }
                         }

@@ -14,9 +14,13 @@ import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeIngredientEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
+
+private const val RESOLVE_TIMEOUT_MS = 2_000L
 
 internal class RoomRecipeRepository(
     private val recipeDao: RecipeDao,
@@ -66,10 +70,25 @@ internal class RoomRecipeRepository(
                             note = recipeEntity.note,
                             isLiquid = recipeEntity.isLiquid,
                             ingredients = ingredients,
+                            category = recipeEntity.category,
                         )
                     }
                 }
             }
+
+    override suspend fun searchRecipes(query: String, limit: Int): List<Recipe> {
+        val match = recipeFtsQuery(query) ?: return emptyList()
+        return recipeDao.searchRecipeIds(match, limit).mapNotNull { id ->
+            // The timeout is a guard, not a wait: the query already skips empty recipes, but an
+            // ingredient whose food vanished would also leave observeRecipe silent forever, and a
+            // search must never hang the assistant on one broken recipe.
+            withTimeoutOrNull(RESOLVE_TIMEOUT_MS) { observeRecipe(FoodId.Recipe(id)).first() }
+        }
+    }
+
+    override suspend fun updateFavorite(recipeId: FoodId.Recipe, isFavorite: Boolean) {
+        recipeDao.updateFavorite(recipeId.id, isFavorite)
+    }
 
     override suspend fun deleteRecipe(recipe: Recipe) {
         val entity = recipe.toEntity()
@@ -82,6 +101,7 @@ internal class RoomRecipeRepository(
         note: String?,
         isLiquid: Boolean,
         ingredients: List<RecipeIngredient>,
+        category: String?,
     ): FoodId.Recipe {
         val recipe =
             Recipe(
@@ -91,6 +111,7 @@ internal class RoomRecipeRepository(
                 note = note,
                 isLiquid = isLiquid,
                 ingredients = ingredients,
+                category = category,
             )
 
         val recipeEntity = recipe.toEntity()
@@ -116,7 +137,17 @@ internal class RoomRecipeRepository(
     }
 
     override suspend fun updateRecipe(recipe: Recipe) {
-        val recipeEntity = recipe.toEntity()
+        // @Update writes every column, and the domain Recipe does not carry the favourite flag: a
+        // plain toEntity() would quietly un-favourite every recipe the moment it was edited. The
+        // recipe editor does not show the category either, so a null keeps the stored one.
+        val stored = recipeDao.getRecipe(recipe.id.id)
+        val recipeEntity =
+            recipe
+                .toEntity()
+                .copy(
+                    isFavorite = stored?.isFavorite ?: false,
+                    category = recipe.category ?: stored?.category,
+                )
 
         val ingredients =
             recipe.ingredients.map { (food, measurement) ->
@@ -141,6 +172,7 @@ private fun Recipe.toEntity(): RecipeEntity =
         servings = this.servings,
         note = this.note,
         isLiquid = this.isLiquid,
+        category = this.category,
     )
 
 private val RecipeIngredientEntity.foodId: FoodId

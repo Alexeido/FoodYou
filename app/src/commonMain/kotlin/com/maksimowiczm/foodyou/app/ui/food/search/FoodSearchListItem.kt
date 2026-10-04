@@ -60,7 +60,7 @@ internal fun FoodSearchListItem(
     food: FoodSearch.Product,
     measurement: Measurement,
     onClick: () -> Unit,
-    onToggleFavorite: ((FoodId.Product, Boolean) -> Unit)? = null,
+    onToggleFavorite: ((FoodId, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Search always shows per-100 g/ml values so products are comparable at a glance, regardless of
@@ -89,7 +89,7 @@ internal fun FoodSearchListItem(
         categories = food.categories,
         isRecipe = false,
         onClick = onClick,
-        productId = food.id,
+        foodId = food.id,
         isFavorite = food.isFavorite,
         onToggleFavorite = onToggleFavorite,
         modifier = modifier,
@@ -104,6 +104,7 @@ internal fun FoodSearchListItem(
     onClick: () -> Unit,
     shimmer: Shimmer,
     modifier: Modifier = Modifier,
+    onToggleFavorite: ((FoodId, Boolean) -> Unit)? = null,
 ) {
     val observeRecipeUseCase: ObserveFoodUseCase = koinInject()
 
@@ -147,6 +148,9 @@ internal fun FoodSearchListItem(
         categories = null,
         isRecipe = true,
         onClick = onClick,
+        foodId = food.id,
+        isFavorite = food.isFavorite,
+        onToggleFavorite = onToggleFavorite,
         modifier = modifier,
     )
 }
@@ -170,12 +174,14 @@ private fun CompactFoodSearchRow(
     categories: List<String>?,
     isRecipe: Boolean,
     onClick: () -> Unit,
-    productId: FoodId.Product? = null,
+    foodId: FoodId? = null,
     isFavorite: Boolean? = null,
-    onToggleFavorite: ((FoodId.Product, Boolean) -> Unit)? = null,
+    onToggleFavorite: ((FoodId, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val category = categories?.let { getFoodCategoryFromTags(it) } ?: getFoodCategory(headline)
+    val category =
+        if (isRecipe) recipeCategory(null, headline)
+        else categories?.let { getFoodCategoryFromTags(it) } ?: getFoodCategory(headline)
     val palette = LocalNutrientsPalette.current
     val (rawTitle, brand) = parseHeadlineBrand(headline)
     // Drop the brand when it's repeated inside the name ("Altramuces Hacendado" -> "Altramuces").
@@ -272,9 +278,11 @@ private fun CompactFoodSearchRow(
             //     }
             // }
 
-            if (!isRecipe && onToggleFavorite != null && productId != null && isFavorite != null) {
+            // Recetas tambien: una receta es lo que mas se repite, y es justo lo que uno quiere
+            // tener a mano en favoritos.
+            if (onToggleFavorite != null && foodId != null && isFavorite != null) {
                 IconButton(
-                    onClick = { onToggleFavorite(productId, !isFavorite) },
+                    onClick = { onToggleFavorite(foodId, !isFavorite) },
                     modifier = Modifier.size(36.dp),
                 ) {
                     Icon(

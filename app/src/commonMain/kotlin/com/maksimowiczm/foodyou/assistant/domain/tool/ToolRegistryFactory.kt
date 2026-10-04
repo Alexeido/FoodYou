@@ -11,7 +11,7 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.read.SearchFoodTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.TopBrandsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.TopFoodsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.AddEntriesTool
-import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateComposedEntryTool
+import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateRecipeTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateManualEntryTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.DeleteEntriesTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.HistoryTool
@@ -42,7 +42,7 @@ class ToolRegistryFactory(
     private val deleteEntries: DeleteEntriesTool,
     private val setEaten: SetEatenTool,
     private val createManualEntry: CreateManualEntryTool,
-    private val createComposedEntry: CreateComposedEntryTool,
+    private val createRecipe: CreateRecipeTool,
     private val history: HistoryTool,
     private val undo: UndoTool,
     private val redo: RedoTool,
@@ -67,7 +67,7 @@ class ToolRegistryFactory(
                 deleteEntries,
                 setEaten,
                 createManualEntry,
-                createComposedEntry,
+                createRecipe,
                 // Historial
                 history,
                 undo,

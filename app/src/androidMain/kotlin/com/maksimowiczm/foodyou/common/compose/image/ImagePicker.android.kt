@@ -111,6 +111,9 @@ actual fun decodeBase64Image(base64: String): ImageBitmap? =
         }
         .getOrNull()
 
+actual fun decodeImageBytes(bytes: ByteArray): ImageBitmap? =
+    runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
+
 /** Longest edge capped, aspect kept. A 4000 px photo becomes ~90 KB of base64 instead of ~7 MB. */
 private fun Bitmap.downscaled(): Bitmap {
     val longest = maxOf(width, height)

@@ -53,7 +53,7 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.read.SearchFoodTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.TopBrandsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.read.TopFoodsTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.AddEntriesTool
-import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateComposedEntryTool
+import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateRecipeTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.CreateManualEntryTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.DeleteEntriesTool
 import com.maksimowiczm.foodyou.assistant.domain.tool.write.HistoryTool
@@ -105,7 +105,7 @@ fun Module.assistantModule() {
     factoryOf(::DeleteEntriesTool)
     factoryOf(::SetEatenTool)
     factoryOf(::CreateManualEntryTool)
-    factoryOf(::CreateComposedEntryTool)
+    factoryOf(::CreateRecipeTool)
 
     // Historial
     factoryOf(::HistoryTool)
@@ -198,6 +198,7 @@ fun Module.assistantModule() {
         RoomChangeJournal(
             dao = get(),
             measurementDao = get(),
+            recipeDao = get(),
             manualRepository = get(),
             conversationStore = get(),
             json = get(org.koin.core.qualifier.named("assistantJson")),

@@ -111,7 +111,7 @@ class CreateManualEntryTool(
  * Offered as an enum so the model cannot invent a name that maps to nothing - an unrecognised
  * category renders exactly like no category at all.
  */
-private val FOOD_CATEGORIES =
+internal val FOOD_CATEGORIES =
     listOf(
         "RESTAURANTES", "PLATOS_PREPARADOS", "COMIDA_INSTANTANEA", "SUPLEMENTOS",
         "CARNES_VEGETALES", "PANADERIA", "DULCES", "CHOCOLATES", "HELADOS", "SNACKS", "GRANOS",

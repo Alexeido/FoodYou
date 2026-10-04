@@ -15,12 +15,26 @@ plugins {
 
 room { schemaDirectory("$projectDir/schemas") }
 
+/**
+ * Número de compilación de este fork (v38, v39...), el mismo que lleva el nombre del APK. Lo usa
+ * el actualizador para saber si la versión estable publicada es más nueva que la instalada.
+ * Se pasa al compilar: `./gradlew assembleDebug -Pfoodyou.build=39`. Sin él vale 0, es decir,
+ * "más antigua que cualquier estable".
+ */
+val foodyouBuild: Int =
+    (findProperty("foodyou.build") as String?)?.toIntOrNull()
+        ?: System.getenv("FOODYOU_BUILD")?.toIntOrNull()
+        ?: 0
+
 buildConfig {
     packageName("com.maksimowiczm.foodyou.app")
     className("BuildConfig")
 
     val versionName = libs.versions.version.name.get()
     buildConfigField("String", "VERSION_NAME", "\"$versionName\"")
+    buildConfigField("Int", "BUILD_NUMBER", "$foodyouBuild")
+    // Dónde se publica la versión estable (el servidor de alimentos, que vive fuera de este repo).
+    buildConfigField("String", "UPDATE_URL", "\"https://foods.alexeido.com/stable\"")
 }
 
 kotlin {
@@ -104,6 +118,7 @@ kotlin {
         }
 
         androidMain.dependencies {
+            implementation(libs.androidx.work.runtime)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.appcompat)
             implementation(libs.koin.android)
@@ -144,8 +159,15 @@ android {
         applicationId = "com.maksimowiczm.foodyou"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = libs.versions.android.versionCode.get().toInt()
-        versionName = libs.versions.version.name.get()
+        // El número de compilación entra en el versionCode para que Android acepte cada APK
+        // nuevo como actualización del anterior: 120 -> 120039 para la compilación 39. La base
+        // (android-versionCode) se queda fija; lo que sube es la compilación.
+        versionCode = libs.versions.android.versionCode.get().toInt() * 1000 + foodyouBuild
+        // Lo que enseña Android en los ajustes de la app: "4.0.0-beta (40)". Dentro de la app,
+        // BuildConfig.VERSION_NAME sigue siendo solo "4.0.0-beta": con ese texto se busca la
+        // entrada de Novedades, y meterle la compilación la dejaría sin notas en cada APK.
+        versionName =
+            libs.versions.version.name.get() + if (foodyouBuild > 0) " ($foodyouBuild)" else ""
 
         manifestPlaceholders["applicationIcon"] = "@mipmap/ic_launcher"
         manifestPlaceholders["applicationRoundIcon"] = "@mipmap/ic_launcher_round"

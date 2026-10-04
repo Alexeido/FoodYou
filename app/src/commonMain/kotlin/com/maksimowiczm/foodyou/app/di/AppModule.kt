@@ -15,6 +15,8 @@ import com.maksimowiczm.foodyou.common.infrastructure.inmemory.inMemoryModule
 import com.maksimowiczm.foodyou.common.infrastructure.koin.applicationCoroutineScope
 import com.maksimowiczm.foodyou.common.infrastructure.system.systemModule
 import com.maksimowiczm.foodyou.common.log.Logger
+import com.maksimowiczm.foodyou.sync.infrastructure.syncModule
+import com.maksimowiczm.foodyou.update.infrastructure.updateModule
 import kotlinx.coroutines.CoroutineScope
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.bind
@@ -35,4 +37,6 @@ fun appModule(applicationCoroutineScope: CoroutineScope) = module {
     inMemoryModule()
     roomModule()
     systemModule()
+    updateModule()
+    syncModule()
 }

@@ -76,6 +76,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
 import com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategoryFromTags
+import com.maksimowiczm.foodyou.app.ui.food.search.recipeCategory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -210,7 +211,7 @@ private fun AddEntryScreen(
                 emoji =
                     when (food) {
                         is ProductModel -> getFoodCategoryFromTags(food.categories).emoji
-                        is RecipeModel -> FoodCategory.UNKNOWN.emoji
+                        is RecipeModel -> recipeCategory(food.category, food.name).emoji
                     },
                 nutritionFacts = food.nutritionFacts,
                 isLiquid = food.isLiquid,

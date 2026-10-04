@@ -19,6 +19,8 @@ data class DiaryFoodRecipe(
     val ingredients: List<DiaryFoodRecipeIngredient>,
     override val isLiquid: Boolean,
     override val note: String?,
+    /** FoodCategory name copied from the catalogue recipe; null lets the UI guess. */
+    val category: String? = null,
 ) : DiaryFood {
 
     override val totalWeight: Double = ingredients.sumOf { it.weight }

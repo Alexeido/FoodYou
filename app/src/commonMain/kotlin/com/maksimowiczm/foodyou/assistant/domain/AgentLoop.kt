@@ -1,6 +1,5 @@
 package com.maksimowiczm.foodyou.assistant.domain
 
-import com.maksimowiczm.foodyou.assistant.domain.tool.ToolArgumentException
 import com.maksimowiczm.foodyou.assistant.domain.tool.ToolRegistry
 import com.maksimowiczm.foodyou.assistant.infrastructure.openai.ChatRequest
 import com.maksimowiczm.foodyou.assistant.infrastructure.openai.FunctionSpec
@@ -15,9 +14,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.put
 
 /** What the chat screen shows while and after the loop runs. */
 sealed interface AgentEvent {
@@ -56,6 +52,8 @@ class AgentLoop(
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    private val runner = ToolCallRunner(registry, logger)
 
     fun run(
         history: List<Message>,
@@ -148,29 +146,44 @@ class AgentLoop(
             // sin el, la API rechaza los mensajes de resultado que vienen despues.
             messages.add(choice.message)
 
-            toolCalls.forEach { call ->
-                val tool = registry.find(call.function.name)
-                usedTools.add(call.function.name)
-                emit(AgentEvent.ToolRan(call.function.name, tool?.mutates == true))
-                emit(AgentEvent.Working(workingLabel(call.function.name)))
+            // Varias lecturas pedidas en la misma respuesta se ejecutan a la vez: buscar el pan,
+            // la carne y el queso cuesta una espera y no tres. Solo si TODAS lo permiten - una
+            // escritura en medio obliga a ir en orden, porque lo que viene despues puede depender
+            // de ella, y el journal tiene que registrar los cambios en el orden en que ocurren.
+            val concurrent = runner.canRunTogether(toolCalls)
 
-                val result =
-                    if (tool == null) {
-                        errorPayload("No existe la herramienta ${call.function.name}.")
-                    } else {
-                        try {
-                            val args = parseArguments(call.function.arguments)
-                            tool.call(args).toString()
-                        } catch (e: ToolArgumentException) {
-                            // Devuelto al modelo como texto: puede leerlo y corregirse, que es
-                            // mucho mejor que reventar la conversacion.
-                            errorPayload(e.message ?: "Argumentos invalidos")
-                        } catch (e: Exception) {
-                            logger.e(TAG, e) { "Tool ${call.function.name} failed" }
-                            errorPayload(e.message ?: "Error ejecutando la herramienta")
-                        }
+            val results =
+                if (concurrent) {
+                    toolCalls.forEach { call ->
+                        usedTools.add(call.function.name)
+                        emit(AgentEvent.ToolRan(call.function.name, false))
                     }
+                    val names = toolCalls.map { it.function.name }.distinct()
+                    emit(
+                        AgentEvent.Working(
+                            if (names.size == 1) workingLabel(names.single())
+                            else "Consultando varias cosas a la vez"
+                        )
+                    )
+                    // Los eventos se emiten antes y fuera: emit() solo puede llamarse desde la
+                    // corrutina del propio flow, nunca desde los async de dentro.
+                    runner.runAll(toolCalls)
+                } else {
+                    toolCalls.map { call ->
+                        usedTools.add(call.function.name)
+                        emit(
+                            AgentEvent.ToolRan(
+                                call.function.name,
+                                registry.find(call.function.name)?.mutates == true,
+                            )
+                        )
+                        emit(AgentEvent.Working(workingLabel(call.function.name)))
+                        runner.run(call)
+                    }
+                }
 
+            // En el mismo orden que las tool_calls, se hayan ejecutado como se hayan ejecutado.
+            toolCalls.zip(results).forEach { (call, result) ->
                 messages.add(
                     Message(
                         role = "tool",
@@ -213,24 +226,6 @@ class AgentLoop(
     }
 
     /** Models sometimes emit arguments that are not valid JSON, or an empty string for none. */
-    private fun parseArguments(raw: String): JsonObject =
-        if (raw.isBlank()) buildJsonObject {}
-        else runCatching { json.parseToJsonElement(raw).jsonObject }.getOrElse { buildJsonObject {} }
-
-    /**
-     * Serialized properly rather than concatenated: a message carrying a quote or a newline - and
-     * several of the tool errors quote a tool name - would otherwise produce malformed JSON, and
-     * the model would receive garbage instead of a correction it can act on.
-     */
-    private fun errorPayload(message: String): String =
-        json.encodeToString(
-            JsonObject.serializer(),
-            buildJsonObject {
-                put("ok", false)
-                put("error", message)
-            },
-        )
-
     /**
      * One label per tool, not per group - a plan with several steps used to sit on "Consultando el
      * diario" for four different tools in a row and looked stuck even while it was working fine.
@@ -252,7 +247,7 @@ class AgentLoop(
             "deleteEntries" -> "Quitando del diario"
             "setEaten" -> "Marcando como comido"
             "createManualEntry" -> "Apuntando una estimacion"
-            "createComposedEntry" -> "Montando el plato"
+            "createRecipe" -> "Montando el plato"
             "history" -> "Revisando los cambios"
             "undo" -> "Deshaciendo"
             "redo" -> "Rehaciendo"
@@ -264,8 +259,4 @@ class AgentLoop(
             "padDiscard" -> "Descartando el borrador"
             else -> "Trabajando"
         }
-
-    private companion object {
-        const val TAG = "AgentLoop"
-    }
 }

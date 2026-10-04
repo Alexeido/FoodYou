@@ -1,5 +1,6 @@
 package com.maksimowiczm.foodyou.fooddiary.domain.usecase
 
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFood
 import com.maksimowiczm.foodyou.common.domain.database.TransactionProvider
 import com.maksimowiczm.foodyou.common.domain.date.DateProvider
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
@@ -28,11 +29,17 @@ class UpdateFoodDiaryEntryUseCase(
     private val transactionProvider: TransactionProvider,
     private val logger: Logger,
 ) {
+    /**
+     * @param food Replaces the entry's own copy of the food when set - used to save a recipe entry
+     *   whose ingredient amounts were changed for this one meal. The catalogue recipe is untouched:
+     *   "today's burger had more meat" is about today, not about the burger.
+     */
     suspend fun update(
         id: FoodDiaryEntryId,
         measurement: Measurement,
         mealId: Long,
         date: LocalDate,
+        food: DiaryFood? = null,
     ): Result<Unit, UpdateFoodDiaryEntryError> {
         return transactionProvider.withTransaction {
             val entry = entryRepository.observe(id).firstOrNull()
@@ -44,11 +51,13 @@ class UpdateFoodDiaryEntryUseCase(
                     message = { "Diary entry with id $id not found" },
                 )
             }
+            // The measurement is validated against the food that will actually be saved.
+            val newFood = food ?: entry.food
 
             when (measurement) {
                 is Measurement.Gram,
                 is Measurement.Ounce ->
-                    if (entry.food.isLiquid) {
+                    if (newFood.isLiquid) {
                         return@withTransaction logger.logAndReturnFailure(
                             tag = TAG,
                             error = UpdateFoodDiaryEntryError.InvalidMeasurement,
@@ -58,7 +67,7 @@ class UpdateFoodDiaryEntryUseCase(
 
                 is Measurement.Milliliter,
                 is Measurement.FluidOunce ->
-                    if (!entry.food.isLiquid) {
+                    if (!newFood.isLiquid) {
                         return@withTransaction logger.logAndReturnFailure(
                             tag = TAG,
                             error = UpdateFoodDiaryEntryError.InvalidMeasurement,
@@ -67,7 +76,7 @@ class UpdateFoodDiaryEntryUseCase(
                     }
 
                 is Measurement.Package ->
-                    if (entry.food.totalWeight == null) {
+                    if (newFood.totalWeight == null) {
                         return@withTransaction logger.logAndReturnFailure(
                             tag = TAG,
                             error = UpdateFoodDiaryEntryError.InvalidMeasurement,
@@ -76,7 +85,7 @@ class UpdateFoodDiaryEntryUseCase(
                     }
 
                 is Measurement.Serving ->
-                    if (entry.food.servingWeight == null) {
+                    if (newFood.servingWeight == null) {
                         return@withTransaction logger.logAndReturnFailure(
                             tag = TAG,
                             error = UpdateFoodDiaryEntryError.InvalidMeasurement,
@@ -97,6 +106,7 @@ class UpdateFoodDiaryEntryUseCase(
 
             val updated =
                 entry.copy(
+                    food = newFood,
                     measurement = measurement,
                     mealId = mealId,
                     date = date,

@@ -21,12 +21,16 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.detailLevelParam
 import com.maksimowiczm.foodyou.assistant.domain.tool.putNutritionFacts
 import com.maksimowiczm.foodyou.assistant.domain.tool.round1
 import com.maksimowiczm.foodyou.assistant.domain.tool.toolError
+import com.maksimowiczm.foodyou.common.domain.food.NutrientUnit
+import com.maksimowiczm.foodyou.common.domain.food.displayUnit
+import com.maksimowiczm.foodyou.common.domain.food.isLimit
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.MealRepository
 import com.maksimowiczm.foodyou.goals.domain.repository.GoalsRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -45,6 +49,7 @@ class DailyTotalsTool(
     private val mealRepository: MealRepository,
 ) : AssistantTool {
     override val name = "dailyTotals"
+    override val runsConcurrently = true
     override val description =
         "Totales nutricionales del diario entre dos fechas. Agrupa por dia, dia de la semana, " +
             "semana, mes o comida (desayuno/comida/cena...). Los dias sin nada registrado " +
@@ -111,6 +116,7 @@ class DailyTotalsTool(
 /** C1. */
 class TopFoodsTool(private val useCase: TopFoodsUseCase) : AssistantTool {
     override val name = "topFoods"
+    override val runsConcurrently = true
     override val description =
         "Los alimentos que mas aparecen en el diario en un rango. Usalo antes de planificar: " +
             "proponer lo que la persona ya come de verdad acierta mas que elegir por tu cuenta."
@@ -149,6 +155,7 @@ class TopFoodsTool(private val useCase: TopFoodsUseCase) : AssistantTool {
 /** C2. */
 class TopBrandsTool(private val useCase: TopBrandsUseCase) : AssistantTool {
     override val name = "topBrands"
+    override val runsConcurrently = true
     override val description =
         "Las marcas que mas aparecen en el diario. Sirve para proponer productos de las tiendas " +
             "donde la persona compra de verdad."
@@ -183,6 +190,7 @@ class TopBrandsTool(private val useCase: TopBrandsUseCase) : AssistantTool {
 /** C3. */
 class NutrientAttributionTool(private val useCase: NutrientAttributionUseCase) : AssistantTool {
     override val name = "nutrientAttribution"
+    override val runsConcurrently = true
     override val description =
         "Que alimentos aportaron un nutriente concreto en un rango, de mayor a menor. Es lo que " +
             "hace falta para responder de donde viene la grasa o que recortar sin perder proteina."
@@ -229,6 +237,7 @@ class NutrientAttributionTool(private val useCase: NutrientAttributionUseCase) :
 /** C4. */
 class SearchDiaryTool(private val useCase: SearchDiaryUseCase) : AssistantTool {
     override val name = "searchDiary"
+    override val runsConcurrently = true
     override val description =
         "Busca un alimento dentro del historial ya registrado. No confundir con searchFood, que " +
             "busca en el catalogo: esto responde cuando comi salmon por ultima vez."
@@ -265,6 +274,7 @@ class SearchDiaryTool(private val useCase: SearchDiaryUseCase) : AssistantTool {
 /** C6. */
 class MealTimingStatsTool(private val useCase: MealTimingStatsUseCase) : AssistantTool {
     override val name = "mealTimingStats"
+    override val runsConcurrently = true
     override val description =
         "A que hora se suele REGISTRAR cada comida, promediado. Ojo: es la hora de registro, no " +
             "la de comer. Si respondes con esto, dilo."
@@ -305,6 +315,7 @@ class DiaryRangeTool(
     private val mealRepository: MealRepository,
 ) : AssistantTool {
     override val name = "diaryRange"
+    override val runsConcurrently = true
     override val description =
         "Las entradas del diario entre dos fechas, con su id. Necesitas el id de una entrada " +
             "para poder cambiarla o borrarla. Sale anidado por dia y comida. Cada alimento lleva " +
@@ -367,6 +378,7 @@ class DiaryRangeTool(
 /** The meals the user has configured. Without this the model cannot address a meal at all. */
 class ListMealsTool(private val mealRepository: MealRepository) : AssistantTool {
     override val name = "listMeals"
+    override val runsConcurrently = true
     override val description =
         "Las comidas configuradas por la persona, con su id y su franja horaria. Necesitas el id " +
             "para anadir nada al diario."
@@ -392,6 +404,7 @@ class ListMealsTool(private val mealRepository: MealRepository) : AssistantTool 
 /** The goals in force, so the model can compare totals against something. */
 class GoalsTool(private val goalsRepository: GoalsRepository) : AssistantTool {
     override val name = "goals"
+    override val runsConcurrently = true
     override val description = "Los objetivos nutricionales para una fecha concreta."
     override val parameters =
         ToolSchema.obj(
@@ -411,6 +424,27 @@ class GoalsTool(private val goalsRepository: GoalsRepository) : AssistantTool {
                 put("proteins", goal.macronutrientGoal.proteinsGrams.round1())
                 put("carbohydrates", goal.macronutrientGoal.carbohydratesGrams.round1())
                 put("fats", goal.macronutrientGoal.fatsGrams.round1())
+            }
+            // Los que la persona quiere cumplir, aparte y con su unidad: son tan suyos como los
+            // macros. Valores en gramos en micronutrientTargets; aquí ya en mg/µg.
+            val tracked = goalsRepository.observeTrackedNutrients().first()
+            putJsonArray("trackedNutrients") {
+                tracked.forEach { field ->
+                    val grams = goal.map[field] ?: return@forEach
+                    addJsonObject {
+                        put("nutrient", field.name)
+                        put("target", (grams * field.displayUnit.perGram).round1())
+                        put(
+                            "unit",
+                            when (field.displayUnit) {
+                                NutrientUnit.Gram -> "g"
+                                NutrientUnit.Milligram -> "mg"
+                                NutrientUnit.Microgram -> "µg"
+                            },
+                        )
+                        put("kind", if (field.isLimit) "limit" else "minimum")
+                    }
+                }
             }
             // El resto va aparte para que no ahogue a los cuatro que de verdad se preguntan.
             putJsonObject("micronutrientTargets") {

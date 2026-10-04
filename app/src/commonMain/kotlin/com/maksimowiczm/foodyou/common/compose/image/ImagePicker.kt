@@ -31,6 +31,9 @@ interface ImagePickerController {
  */
 expect fun decodeBase64Image(base64: String): androidx.compose.ui.graphics.ImageBitmap?
 
+/** Same as [decodeBase64Image], for raw bytes (a PNG or JPEG downloaded as is). */
+expect fun decodeImageBytes(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap?
+
 /**
  * Picks a photo and hands back base64.
  *

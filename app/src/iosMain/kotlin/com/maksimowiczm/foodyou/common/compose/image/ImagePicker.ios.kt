@@ -15,3 +15,5 @@ actual fun rememberImagePicker(onPicked: (PickedImage) -> Unit): ImagePickerCont
 
 /** Nothing to decode while [rememberImagePicker] cannot produce anything on this platform. */
 actual fun decodeBase64Image(base64: String): ImageBitmap? = null
+
+actual fun decodeImageBytes(bytes: ByteArray): ImageBitmap? = null

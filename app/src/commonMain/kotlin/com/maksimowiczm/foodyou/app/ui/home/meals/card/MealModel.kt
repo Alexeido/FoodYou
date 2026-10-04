@@ -51,6 +51,8 @@ internal data class FoodMealEntryModel(
     val isRecipe: Boolean,
     val servingWeight: Double?,
     val totalWeight: Double?,
+    /** Logged by the AI assistant rather than by hand. */
+    val createdByAssistant: Boolean = false,
 ) : MealEntryModel
 
 @Immutable

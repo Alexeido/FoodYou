@@ -10,4 +10,5 @@ data class DiaryRecipeEntity(
     val servings: Int,
     val isLiquid: Boolean,
     val note: String?,
+    val category: String? = null,
 )

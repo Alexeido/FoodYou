@@ -151,7 +151,11 @@ internal class RoomFoodSearchRepository(private val foodSearchDao: FoodSearchDao
                 config = config,
                 pagingSourceFactory = {
                     when (query) {
-                        SearchQuery.Blank -> foodSearchDao.observeFavorites(source = source?.toEntity())
+                        SearchQuery.Blank ->
+                            foodSearchDao.observeFavorites(
+                                source = source?.toEntity(),
+                                excludedRecipeId = excludedRecipeId?.id,
+                            )
 
                         is SearchQuery.Text ->
                             foodSearchDao.observeFavoritesByQuery(
@@ -177,7 +181,11 @@ internal class RoomFoodSearchRepository(private val foodSearchDao: FoodSearchDao
         excludedRecipeId: FoodId.Recipe?,
     ): Flow<Int> =
         when (query) {
-            SearchQuery.Blank -> foodSearchDao.observeFavoritesCount(source = source?.toEntity())
+            SearchQuery.Blank ->
+                foodSearchDao.observeFavoritesCount(
+                    source = source?.toEntity(),
+                    excludedRecipeId = excludedRecipeId?.id,
+                )
 
             is SearchQuery.Text ->
                 foodSearchDao.observeFavoritesCountByQuery(
@@ -285,6 +293,7 @@ private fun RoomFoodSearch.toModel(): FoodSearch =
                 id = foodId,
                 headline = headline,
                 isLiquid = isLiquid,
+                isFavorite = isFavorite ?: false,
                 suggestedMeasurement = suggestedMeasurement,
             )
     }

@@ -24,6 +24,8 @@ class AssistantPad {
         val date: LocalDate,
         val name: String,
         val foodId: Long?,
+        /** Set instead of [foodId] when the row is one of the person's recipes. */
+        val recipeId: Long? = null,
         val measurement: Measurement,
         /** Facts for the amount in [measurement], not per 100 g. */
         val facts: NutritionFacts,
@@ -55,6 +57,7 @@ class AssistantPad {
         facts: NutritionFacts,
         grams: Double,
         fromDiary: Boolean = false,
+        recipeId: Long? = null,
     ): Item {
         val item =
             Item(
@@ -63,6 +66,7 @@ class AssistantPad {
                 date = date,
                 name = name,
                 foodId = foodId,
+                recipeId = recipeId,
                 measurement = measurement,
                 facts = facts,
                 grams = grams,

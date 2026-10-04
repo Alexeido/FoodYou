@@ -30,6 +30,16 @@ interface AssistantTool {
         get() = false
 
     /**
+     * True when this tool can run at the same time as other calls that also say so - which is what
+     * lets "search the bun, the patty and the cheese" cost one wait instead of three.
+     *
+     * Opt-in, and only for pure reads. [mutates] = false is not enough: the draft tools write nothing
+     * to the diary but do change the in-memory pad, and two of those at once would race.
+     */
+    val runsConcurrently: Boolean
+        get() = false
+
+    /**
      * Runs the tool. The returned element is serialized straight back to the model, so keep it small
      * and self-describing - it is charged as input tokens on every following turn.
      */

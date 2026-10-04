@@ -67,6 +67,27 @@ internal class AssistantChatViewModel(
     private var runningJob: Job? = null
     private var workingPump: Job? = null
 
+    init {
+        resumeLastConversation()
+    }
+
+    /**
+     * Opening the assistant continues the most recent conversation instead of a blank one. The
+     * store survives leaving the screen but not the app being closed, and after that every visit
+     * used to start from zero. "New conversation" still gives a blank chat, and that choice sticks.
+     */
+    private fun resumeLastConversation() {
+        if (!conversation.shouldResumeLast) return
+        viewModelScope.launch {
+            val last = conversationRepository.observeAll().first().firstOrNull() ?: return@launch
+            val snapshot = conversationRepository.load(last.id) ?: return@launch
+            // Si mientras cargaba ya se ha escrito algo, eso manda.
+            if (conversation.shouldResumeLast) {
+                conversation.restore(last.id, snapshot.turns, snapshot.apiMessages)
+            }
+        }
+    }
+
     val isRunning: Boolean
         get() = runningJob?.isActive == true
 

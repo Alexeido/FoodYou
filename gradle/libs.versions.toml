@@ -1,5 +1,9 @@
 [versions]
-version-name = "3.9.1"
+# App de Wear OS (módulo :wear)
+wearCompose = "1.5.0"
+# Sincronización en segundo plano (app cerrada)
+androidx-work = "2.10.1"
+version-name = "4.2.1"
 android-versionCode = "120"
 android-compileSdk = "36"
 android-minSdk = "28"
@@ -44,6 +48,10 @@ sqliteBundled = "2.6.2"
 zxingAndroidEmbedded = "4.3.0"
 
 [libraries]
+androidx-wear-compose-material3 = { module = "androidx.wear.compose:compose-material3", version.ref = "wearCompose" }
+androidx-wear-compose-foundation = { module = "androidx.wear.compose:compose-foundation", version.ref = "wearCompose" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
+androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
@@ -101,6 +109,7 @@ sqlite-android = { module = "com.github.requery:sqlite-android", version.ref = "
 zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 
 [plugins]
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }

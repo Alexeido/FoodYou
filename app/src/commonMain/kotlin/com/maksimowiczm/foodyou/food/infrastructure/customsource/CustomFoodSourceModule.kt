@@ -33,6 +33,7 @@ internal fun Module.customFoodSourceModule() {
             client = get(named(CustomFoodSourceRemoteDataSource::class.qualifiedName!!)),
             get(),
             get(),
+            installationId = get(),
         )
     }
     factory {

@@ -4,9 +4,11 @@ import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingConfig
 import androidx.paging.PagingState
+import com.maksimowiczm.foodyou.common.domain.search.SearchOrigin
 import com.maksimowiczm.foodyou.common.domain.search.searchQuery
 import com.maksimowiczm.foodyou.common.log.Logger
 import com.maksimowiczm.foodyou.food.search.domain.FoodRemoteMediatorFactoryAggregate
+import kotlinx.coroutines.withContext
 
 /**
  * [SearchFoodTool] only reads the local Room mirror - fast, and free of a network call on every
@@ -23,7 +25,10 @@ class AssistantRemoteFoodFallback(
     private val mediators: FoodRemoteMediatorFactoryAggregate,
     private val logger: Logger,
 ) {
-    suspend fun fetchIntoCache(query: String, pageSize: Int) {
+    suspend fun fetchIntoCache(query: String, pageSize: Int) =
+        withContext(SearchOrigin.Assistant) { fetch(query, pageSize) }
+
+    private suspend fun fetch(query: String, pageSize: Int) {
         val sq = searchQuery(query)
         val state =
             PagingState<Any, Any>(

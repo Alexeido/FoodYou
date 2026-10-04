@@ -82,6 +82,10 @@ internal fun MeasureIngredientScreen(
                 emoji =
                     when (food) {
                         is Product -> getFoodCategoryFromTags(food.categories).emoji
+                        is com.maksimowiczm.foodyou.food.domain.entity.Recipe ->
+                            com.maksimowiczm.foodyou.app.ui.food.search
+                                .recipeCategory(food.category, food.headline)
+                                .emoji
                         else -> FoodCategory.UNKNOWN.emoji
                     },
                 nutritionFacts = food.nutritionFacts,

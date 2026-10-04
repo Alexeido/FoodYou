@@ -46,8 +46,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
-import com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategoryFromTags
+import com.maksimowiczm.foodyou.app.ui.food.search.diaryCategory
+import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.common.component.ArrowBackIconButton
 import com.maksimowiczm.foodyou.app.ui.common.theme.LocalNutrientsPalette
@@ -65,7 +65,6 @@ import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFood
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodProduct
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipe
-import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -91,10 +90,11 @@ fun UpdateEntryScreen(
     }
 
     val entry = viewModel.entry.collectAsStateWithLifecycle().value
+    val food = viewModel.food.collectAsStateWithLifecycle().value
     val possibleTypes = viewModel.possibleMeasurementTypes.collectAsStateWithLifecycle().value
     val suggestions = viewModel.suggestions.collectAsStateWithLifecycle().value
 
-    if (entry == null || suggestions == null || possibleTypes == null) {
+    if (entry == null || food == null || suggestions == null || possibleTypes == null) {
         // TODO loading state
     } else {
         val state =
@@ -120,8 +120,19 @@ fun UpdateEntryScreen(
                     date = entry.date,
                 )
             },
+            onEditIngredient = { index, measurement ->
+                viewModel
+                    .editIngredient(
+                        currentMeasurement = state.measurementState.measurement,
+                        index = index,
+                        measurement = measurement,
+                    )
+                    // La racion pasa a ser el plato nuevo entero: asi la lista y los totales
+                    // siguen cuadrando con lo que se acaba de escribir.
+                    ?.let { state.measurementState.setWeightGrams(it.toFloat()) }
+            },
             state = state,
-            entry = entry,
+            food = food,
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = modifier,
         )
@@ -133,30 +144,13 @@ private fun UpdateEntryScreen(
     onBack: () -> Unit,
     onUnpack: () -> Unit,
     onSave: () -> Unit,
+    onEditIngredient: (index: Int, measurement: Measurement) -> Unit,
     state: FoodMeasurementFormState,
-    entry: FoodDiaryEntry,
+    food: DiaryFood,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
 ) {
-    val food = entry.food
-    val ui =
-        remember(food) {
-            FoodDetailUi(
-                name = food.name,
-                emoji =
-                    when (food) {
-                        is DiaryFoodProduct -> getFoodCategoryFromTags(food.categories).emoji
-                        is DiaryFoodRecipe -> FoodCategory.UNKNOWN.emoji
-                    },
-                nutritionFacts = food.nutritionFacts,
-                isLiquid = food.isLiquid,
-                note = food.note,
-                totalWeight = food.totalWeight,
-                servingWeight = food.servingWeight,
-                source = (food as? DiaryFoodProduct)?.source,
-                weightOf = food::weight,
-            )
-        }
+    val ui = remember(food) { food.toFoodDetailUi() }
 
     FoodEntryDetailScaffold(
         ui = ui,
@@ -178,6 +172,7 @@ private fun UpdateEntryScreen(
                     Ingredients(
                         ingredients = food.unpack(measurement),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        onEdit = onEditIngredient,
                     )
                 }
             } else {
@@ -185,3 +180,17 @@ private fun UpdateEntryScreen(
             },
     )
 }
+
+/** What the detail screen - and an ingredient's editor - need to draw a diary food. */
+internal fun DiaryFood.toFoodDetailUi(): FoodDetailUi =
+    FoodDetailUi(
+        name = name,
+        emoji = diaryCategory().emoji,
+        nutritionFacts = nutritionFacts,
+        isLiquid = isLiquid,
+        note = note,
+        totalWeight = totalWeight,
+        servingWeight = servingWeight,
+        source = (this as? DiaryFoodProduct)?.source,
+        weightOf = ::weight,
+    )

@@ -1,6 +1,13 @@
 package com.maksimowiczm.foodyou.app.ui.home.goals
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -36,13 +43,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.common.theme.LocalNutrientsPalette
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalEnergyFormatter
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalNutrientsOrder
+import com.maksimowiczm.foodyou.app.ui.goals.master.stringResource
 import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCard
 import com.maksimowiczm.foodyou.app.ui.home.shared.HomeState
 import com.maksimowiczm.foodyou.common.compose.extension.toDp
+import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
+import com.maksimowiczm.foodyou.common.domain.food.NutrientUnit
+import com.maksimowiczm.foodyou.common.domain.food.displayUnit
+import com.maksimowiczm.foodyou.common.domain.food.isLimit
 import com.maksimowiczm.foodyou.settings.domain.entity.GoalsCardStyle
 import com.maksimowiczm.foodyou.settings.domain.entity.GoalsFigureValue
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
 import kotlin.math.roundToInt
+import kotlin.math.sign
 import com.valentinilk.shimmer.Shimmer
 import com.valentinilk.shimmer.shimmer
 import foodyou.app.generated.resources.*
@@ -85,6 +98,7 @@ internal fun GoalsCard(
             carbohydratesGoal = model.carbohydratesGoal,
             fats = model.fats,
             fatsGoal = model.fatsGoal,
+            tracked = model.tracked,
             onClick = { onClick(homeState.selectedDate.toEpochDays()) },
             onLongClick = onLongClick,
             modifier = modifier,
@@ -108,7 +122,16 @@ internal fun GoalsCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tracked: List<TrackedNutrientModel> = emptyList(),
 ) {
+    // Marcar o desmarcar algo como comido cambia el día de golpe; las cifras cuentan hasta el
+    // nuevo valor en vez de saltar, y todo lo que se dibuja con ellas las sigue.
+    val energyShown by animateIntAsState(energy, MaterialTheme.motionScheme.slowEffectsSpec())
+    val proteinsShown by animateIntAsState(proteins, MaterialTheme.motionScheme.slowEffectsSpec())
+    val carbohydratesShown by
+        animateIntAsState(carbohydrates, MaterialTheme.motionScheme.slowEffectsSpec())
+    val fatsShown by animateIntAsState(fats, MaterialTheme.motionScheme.slowEffectsSpec())
+
     val proteinsPercentage =
         animateFloatAsState(
                 targetValue = proteins.toFloat() / proteinsGoal,
@@ -133,7 +156,7 @@ internal fun GoalsCard(
     FoodYouHomeCard(modifier = modifier, onClick = onClick, onLongClick = onLongClick) {
         Column(modifier = Modifier.padding(16.dp)) {
             GoalsCardContent(
-                energy = energy,
+                energy = energyShown,
                 energyGoal = energyGoal,
                 style = style,
                 figureValue = figureValue,
@@ -142,11 +165,11 @@ internal fun GoalsCard(
                 carbohydratesGoal = carbohydratesGoal,
                 fatsGoal = fatsGoal,
                 proteinsPercentage = proteinsPercentage,
-                proteinsGrams = proteins,
+                proteinsGrams = proteinsShown,
                 carbsPercentage = carbsPercentage,
-                carbohydratesGrams = carbohydrates,
+                carbohydratesGrams = carbohydratesShown,
                 fatsPercentage = fatsPercentage,
-                fatsGrams = fats,
+                fatsGrams = fatsShown,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -159,14 +182,18 @@ internal fun GoalsCard(
                     Spacer(Modifier.height(16.dp))
 
                     ExpandedCardContent(
-                        proteinsGrams = proteins,
+                        proteinsGrams = proteinsShown,
                         proteinsGoalGrams = proteinsGoal,
-                        carbohydratesGrams = carbohydrates,
+                        carbohydratesGrams = carbohydratesShown,
                         carbohydratesGoalGrams = carbohydratesGoal,
-                        fatsGrams = fats,
+                        fatsGrams = fatsShown,
                         fatsGoalGrams = fatsGoal,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    tracked.forEach { nutrient ->
+                        TrackedNutrientRow(nutrient, Modifier.fillMaxWidth())
+                    }
                 }
             }
         }
@@ -199,19 +226,14 @@ private fun GoalsCardContent(
     val colorScheme = MaterialTheme.colorScheme
     val outlineColor = MaterialTheme.colorScheme.outline
 
+    val caloriesColor by
+        animateColorAsState(
+            if (energy > energyGoal) colorScheme.error else colorScheme.onSurface,
+            MaterialTheme.motionScheme.slowEffectsSpec(),
+        )
+
     val caloriesString = buildAnnotatedString {
-        withStyle(
-            typography.headlineLargeEmphasized
-                .merge(
-                    color =
-                        when {
-                            energy < energyGoal -> colorScheme.onSurface
-                            energy == energyGoal -> colorScheme.onSurface
-                            else -> colorScheme.error
-                        }
-                )
-                .toSpanStyle()
-        ) {
+        withStyle(typography.headlineLargeEmphasized.merge(color = caloriesColor).toSpanStyle()) {
             append(energyFormatter.formatEnergy(energy, withSuffix = false))
             append(" ")
         }
@@ -283,15 +305,25 @@ private fun GoalsCardContent(
                 Text(text = caloriesString, style = typography.headlineLargeEmphasized)
 
                 if (style.showsEnergyLeft) {
+                    val fadeInSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val fadeOutSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    AnimatedContent(
+                        targetState = left.sign,
+                        transitionSpec = {
+                            (fadeIn(fadeInSpec) + slideInVertically { it / 3 })
+                                .togetherWith(fadeOut(fadeOutSpec))
+                        },
+                        label = "energyLeft",
+                    ) { state ->
                     when {
-                        left > 0 ->
+                        state > 0 ->
                             Text(
                                 text = energyFormatter.energyLeft(left),
                                 color = MaterialTheme.colorScheme.outline,
                                 style = MaterialTheme.typography.bodyMediumEmphasized,
                             )
 
-                        left == 0 ->
+                        state == 0 ->
                             Text(
                                 text = stringResource(Res.string.positive_goal_reached),
                                 color = MaterialTheme.colorScheme.outline,
@@ -304,6 +336,7 @@ private fun GoalsCardContent(
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodyMediumEmphasized,
                             )
+                    }
                     }
                 }
 
@@ -575,6 +608,72 @@ private fun ExpandedCardContent(
     }
 }
 
+/**
+ * A nutrient the person wants to reach (calcium...), like the macro rows above. Going over is not
+ * a problem for most - reaching the goal turns it the primary colour - but it is for a limit
+ * (sugar, salt...), which turns red like a macro. When
+ * some food doesn't say how much it has, the figure is a minimum and says so with "≥".
+ */
+@Composable
+private fun TrackedNutrientRow(nutrient: TrackedNutrientModel, modifier: Modifier = Modifier) {
+    val typography = MaterialTheme.typography
+    val colorScheme = MaterialTheme.colorScheme
+    val unit = nutrient.field.displayUnit
+    val target = nutrient.grams * unit.perGram
+    val animated by
+        animateFloatAsState(target.toFloat(), MaterialTheme.motionScheme.slowEffectsSpec())
+    val value = animated.toDouble()
+    val goal = nutrient.goalGrams * unit.perGram
+    val reached = goal > 0 && target >= goal
+    val color by
+        animateColorAsState(
+            when {
+                nutrient.field.isLimit && target > goal -> colorScheme.error
+                nutrient.field.isLimit -> colorScheme.tertiary
+                reached -> colorScheme.primary
+                else -> colorScheme.tertiary
+            },
+            MaterialTheme.motionScheme.slowEffectsSpec(),
+        )
+    val unitLabel =
+        when (unit) {
+            NutrientUnit.Gram -> stringResource(Res.string.unit_gram_short)
+            NutrientUnit.Milligram -> stringResource(Res.string.unit_milligram_short)
+            NutrientUnit.Microgram -> stringResource(Res.string.unit_microgram_short)
+        }
+
+    val text = buildAnnotatedString {
+        withStyle(typography.headlineSmall.merge(color).toSpanStyle()) {
+            append(if (nutrient.complete) " " else " ≥")
+            append(value.forCard())
+            append(" ")
+        }
+        withStyle(typography.bodyMedium.merge(colorScheme.outline).toSpanStyle()) {
+            append("/ ${goal.forCard()} $unitLabel")
+        }
+    }
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        RoundedSquare(color)
+        Text(
+            text = nutrient.field.stringResource(),
+            modifier = Modifier.weight(1f),
+            style = typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(text = text, style = typography.headlineSmall)
+    }
+}
+
+/** Whole numbers from 10 up; one decimal below, where it still says something (1.4 g). */
+private fun Double.forCard(): String =
+    if (this >= 10 || this == 0.0) roundToInt().toString() else formatClipZeros("%.1f")
+
 @Composable
 private fun RoundedSquare(color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.size(16.dp).clip(MaterialTheme.shapes.extraSmall)) {
@@ -598,6 +697,11 @@ internal fun GoalsMiniBar(
     val nutrientsOrder = LocalNutrientsOrder.current
     val energyFormatter = LocalEnergyFormatter.current
     val colorScheme = MaterialTheme.colorScheme
+    val energyShown by animateIntAsState(energy, MaterialTheme.motionScheme.slowEffectsSpec())
+    val proteinsShown by animateIntAsState(proteins, MaterialTheme.motionScheme.slowEffectsSpec())
+    val carbohydratesShown by
+        animateIntAsState(carbohydrates, MaterialTheme.motionScheme.slowEffectsSpec())
+    val fatsShown by animateIntAsState(fats, MaterialTheme.motionScheme.slowEffectsSpec())
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -611,9 +715,9 @@ internal fun GoalsMiniBar(
         ) {
             MiniMacroColumn(
                 label = energyFormatter.suffix(),
-                value = energyFormatter.formatEnergy(energy, withSuffix = false),
+                value = energyFormatter.formatEnergy(energyShown, withSuffix = false),
                 goal = energyFormatter.formatEnergy(energyGoal, withSuffix = false),
-                progress = if (energyGoal > 0) (energy.toFloat() / energyGoal).coerceIn(0f, 1f) else 0f,
+                progress = if (energyGoal > 0) (energyShown.toFloat() / energyGoal).coerceIn(0f, 1f) else 0f,
                 barColor = colorScheme.primary,
                 modifier = Modifier.weight(1f),
             )
@@ -623,9 +727,9 @@ internal fun GoalsMiniBar(
                     NutrientsOrder.Proteins ->
                         MiniMacroColumn(
                             label = stringResource(Res.string.nutriment_proteins),
-                            value = "$proteins",
+                            value = "$proteinsShown",
                             goal = "$proteinsGoal",
-                            progress = if (proteinsGoal > 0) (proteins.toFloat() / proteinsGoal).coerceIn(0f, 1f) else 0f,
+                            progress = if (proteinsGoal > 0) (proteinsShown.toFloat() / proteinsGoal).coerceIn(0f, 1f) else 0f,
                             barColor = nutrientsPalette.proteinsOnSurfaceContainer,
                             suffix = stringResource(Res.string.unit_gram_short),
                             modifier = Modifier.weight(1f),
@@ -634,9 +738,9 @@ internal fun GoalsMiniBar(
                     NutrientsOrder.Carbohydrates ->
                         MiniMacroColumn(
                             label = stringResource(Res.string.nutriment_carbohydrates),
-                            value = "$carbohydrates",
+                            value = "$carbohydratesShown",
                             goal = "$carbohydratesGoal",
-                            progress = if (carbohydratesGoal > 0) (carbohydrates.toFloat() / carbohydratesGoal).coerceIn(0f, 1f) else 0f,
+                            progress = if (carbohydratesGoal > 0) (carbohydratesShown.toFloat() / carbohydratesGoal).coerceIn(0f, 1f) else 0f,
                             barColor = nutrientsPalette.carbohydratesOnSurfaceContainer,
                             suffix = stringResource(Res.string.unit_gram_short),
                             modifier = Modifier.weight(1f),
@@ -645,9 +749,9 @@ internal fun GoalsMiniBar(
                     NutrientsOrder.Fats ->
                         MiniMacroColumn(
                             label = stringResource(Res.string.nutriment_fats),
-                            value = "$fats",
+                            value = "$fatsShown",
                             goal = "$fatsGoal",
-                            progress = if (fatsGoal > 0) (fats.toFloat() / fatsGoal).coerceIn(0f, 1f) else 0f,
+                            progress = if (fatsGoal > 0) (fatsShown.toFloat() / fatsGoal).coerceIn(0f, 1f) else 0f,
                             barColor = nutrientsPalette.fatsOnSurfaceContainer,
                             suffix = stringResource(Res.string.unit_gram_short),
                             modifier = Modifier.weight(1f),

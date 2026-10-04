@@ -16,6 +16,10 @@
          funcionando igual: Android permite mantener el primer plano aunque no se muestre nada. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- El actualizador: abre el instalador de Android con el APK nuevo que ha descargado.
+         Android pide al usuario que lo permita la primera vez. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- El reconocedor de voz vive en otra app; sin esto no se puede consultar si existe. -->
     <queries>
         <intent>

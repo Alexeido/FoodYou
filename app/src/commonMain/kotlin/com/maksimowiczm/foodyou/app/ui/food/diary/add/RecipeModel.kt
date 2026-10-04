@@ -18,6 +18,8 @@ internal data class RecipeModel(
     val servings: Int,
     private val ingredients: List<IngredientModel>,
     val allIngredients: List<Triple<FoodId, String, NutritionFacts>>,
+    /** FoodCategory name, null when the recipe has none. */
+    val category: String? = null,
 ) : FoodModel {
     override val servingWeight: Double = totalWeight / servings
 
@@ -38,6 +40,7 @@ internal data class RecipeModel(
         ingredients = recipe.ingredients.map(::IngredientModel).sortedBy { it.name.lowercase() },
         allIngredients =
             recipe.flatIngredients().map { Triple(it.id, it.headline, it.nutritionFacts) },
+        category = recipe.category,
     )
 
     fun unpack(weight: Double): List<IngredientModel> {

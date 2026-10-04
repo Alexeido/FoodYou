@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 /** C14. What the assistant has changed, so it can answer "what did you do" honestly. */
 class HistoryTool(private val journal: ChangeJournal) : AssistantTool {
     override val name = "history"
+    override val runsConcurrently = true
     override val description =
         "Los ultimos cambios que has hecho tu en el diario, con su id y si siguen aplicados."
     override val parameters =

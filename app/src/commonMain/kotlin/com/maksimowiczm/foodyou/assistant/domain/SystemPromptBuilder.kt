@@ -1,5 +1,9 @@
 package com.maksimowiczm.foodyou.assistant.domain
 
+import com.maksimowiczm.foodyou.common.domain.food.NutrientUnit
+import com.maksimowiczm.foodyou.common.domain.food.NutritionFactsField
+import com.maksimowiczm.foodyou.common.domain.food.displayUnit
+import com.maksimowiczm.foodyou.common.domain.food.isLimit
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.MealRepository
 import com.maksimowiczm.foodyou.goals.domain.repository.GoalsRepository
 import kotlinx.coroutines.flow.first
@@ -30,6 +34,7 @@ class SystemPromptBuilder(
         val meals = mealRepository.observeMeals().first()
         val goals = goalsRepository.observeDailyGoals(today).first()
         val remembered = memory.all()
+        val tracked = goalsRepository.observeTrackedNutrients().first()
 
         val mealLines =
             meals.joinToString("\n") { meal ->
@@ -46,6 +51,15 @@ class SystemPromptBuilder(
                 appendLine("- Protein: ${macros.proteinsGrams.toInt()} g")
                 appendLine("- Carbohydrates: ${macros.carbohydratesGrams.toInt()} g")
                 append("- Fat: ${macros.fatsGrams.toInt()} g")
+            }
+
+        // Lo que la persona ha marcado para cumplir (el calcio de una madre, la fibra...). El resto
+        // de micronutrientes tiene objetivo por defecto, pero solo de referencia.
+        val trackedLines =
+            tracked.mapNotNull { field ->
+                val grams = goals.map[field] ?: return@mapNotNull null
+                val kind = if (field.isLimit) "a limit: stay under it" else "wants to reach it"
+                "- ${field.name}: ${grams.inDisplayUnit(field)} per day ($kind)"
             }
 
         val memoryLines =
@@ -67,6 +81,14 @@ You need the meal id to add anything to the diary.
 ## Today's goals
 ${goalLines.ifEmpty { "  (no goals set)" }}
 
+## Nutrients this person wants to meet
+${trackedLines.joinToString("\n").ifEmpty { "  (none beyond energy and macros)" }}
+These are goals they chose on purpose, as important to them as the macros. When you report a
+day, plan meals or suggest food, include how they are doing on them (dailyTotals/diaryRange with
+detailLevel "full" for a vitamin or mineral, "extended" for fibre, sugar, salt...), and prefer
+foods that help reach them. Many foods in the database do not list every micronutrient: if a
+total is marked incomplete, say the real figure is probably higher.
+
 ## What this person has told you
 ${memoryLines}
 
@@ -79,20 +101,31 @@ ${memoryLines}
    one the diary draws a grey question mark instead of an icon.
 
    For a dish made of several things eaten together - a burger, a sandwich, a mixed plate, a salad
-   - use createComposedEntry instead of adding each part as its own row. It writes ONE diary entry
-   carrying the macros of the whole dish, with the parts kept as a breakdown shown when the row is
-   tapped. Those parts are descriptive only and never counted on their own, so the macros you give
-   must cover the entire dish. A single real product the person ate is not a composed dish: that is
-   addEntries or createManualEntry.
+   - record it as ONE recipe, not as a loose row per part. First call searchFood with the dish name:
+   results with kind=recipe are dishes this person already built. If one matches, log it with
+   addEntries and its recipeId - never build the same dish twice. Only if none matches, build it
+   with createRecipe, passing date and mealId so it is also logged in the same step.
 
-   If someone describes or shows you a photo of a composite dish ("pork loin sandwich", "salad with
-   tuna and cheese"), do NOT search for the whole dish at once: it will not be in the database, and
-   you would not know its weight anyway. Break it into its recognisable ingredients and call
-   searchFood separately for each one (e.g. "bread", "cured pork loin"), estimating the grams of
-   each yourself from what you see or are told - that is how you get real macros instead of invented
-   ones. Then add up what you found and record the dish with createComposedEntry as ONE entry: the
-   searching is how you arrive at honest numbers, not a reason to leave five loose rows in someone's
-   diary. Pass each ingredient you searched, with its grams, as the breakdown.
+   A recipe is made of real foods from the catalogue, each with its own grams, and its macros come
+   from them - you never type the macros of a dish. That is what lets the person change the grams of
+   one ingredient later, or the size of the whole portion, and see the numbers follow. A single real
+   product the person ate is not a dish: that is addEntries or createManualEntry.
+
+   If someone describes or shows you a photo of a dish ("pork loin sandwich", "salad with tuna and
+   cheese") that is not already one of their recipes, do NOT search for the whole dish in the
+   catalogue: it will not be there, and you would not know its weight anyway. Break it into its
+   recognisable ingredients and search them ALL IN ONE searchFood call, passing them together in
+   `queries` (e.g. ["bread", "cured pork loin", "olive oil"]), estimating the grams of each yourself
+   from what you see or are told. Then pass those foodIds with their grams to createRecipe. If the
+   person ate only part of the dish, say how much with eatenAmount; otherwise the whole dish is
+   logged. Give it a category for its icon (PLATOS_PREPARADOS for home cooking, RESTAURANTES for a
+   restaurant dish). Never pick a search result marked `incomplete` (null calories or macros) when
+   another result fits: it would leave the whole dish flagged as incomplete in the diary.
+
+   Speed matters: every round trip to you takes seconds, a lookup takes milliseconds. Whenever you
+   need several things, ask for them in the same response - several foods in one `queries`, or
+   several read tools (goals, dailyTotals, listMeals...) called together, which run at the same
+   time. Never search one food, wait for the answer, then search the next.
 
    Both addEntries and padAdd accept an amount either as a fixed quantity (amount+unit) or as a
    nutrient target (targetNutrient+targetAmount, e.g. "I need 20 g of protein, add the chicken for
@@ -139,6 +172,19 @@ Be brief and to the point. Give the numbers that matter and do not repeat what t
 sees on screen. Do not list the tools you used or describe your process - report the result.
         """
             .trimIndent()
+    }
+
+    private fun Double.inDisplayUnit(field: NutritionFactsField): String {
+        val unit = field.displayUnit
+        val value = this * unit.perGram
+        val symbol =
+            when (unit) {
+                NutrientUnit.Gram -> "g"
+                NutrientUnit.Milligram -> "mg"
+                NutrientUnit.Microgram -> "µg"
+            }
+        val number = if (value >= 10) value.toInt().toString() else ((value * 10).toInt() / 10.0).toString()
+        return "$number $symbol"
     }
 
     private fun dayName(date: LocalDate): String =

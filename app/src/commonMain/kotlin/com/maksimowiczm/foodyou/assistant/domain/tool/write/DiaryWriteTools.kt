@@ -24,8 +24,10 @@ import com.maksimowiczm.foodyou.assistant.domain.tool.round1
 import com.maksimowiczm.foodyou.assistant.domain.tool.toolError
 import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import com.maksimowiczm.foodyou.common.extension.now
+import com.maksimowiczm.foodyou.food.domain.entity.Food
 import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.repository.ProductRepository
+import com.maksimowiczm.foodyou.food.domain.repository.RecipeRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.MealRepository
@@ -39,7 +41,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /** Builds a measurement from the loose way a model describes one. */
-private fun measurementFrom(unit: String?, amount: Double, isLiquid: Boolean): Measurement =
+internal fun measurementFrom(unit: String?, amount: Double, isLiquid: Boolean): Measurement =
     when (unit?.lowercase()) {
         "serving", "porcion", "racion" -> Measurement.Serving(amount)
         "package", "paquete", "envase" -> Measurement.Package(amount)
@@ -51,7 +53,7 @@ private fun measurementFrom(unit: String?, amount: Double, isLiquid: Boolean): M
         else -> if (isLiquid) Measurement.Milliliter(amount) else Measurement.Gram(amount)
     }
 
-private val unitSchema =
+internal val unitSchema =
     ToolSchema.string(
         "Unidad de la cantidad. Si la omites se usa gramos para solidos y mililitros para " +
             "liquidos, que es casi siempre lo correcto.",
@@ -66,6 +68,7 @@ private val unitSchema =
  */
 class AddEntriesTool(
     private val productRepository: ProductRepository,
+    private val recipeRepository: RecipeRepository,
     private val entryRepository: FoodDiaryEntryRepository,
     private val mealRepository: MealRepository,
     private val journal: ChangeJournal,
@@ -73,7 +76,8 @@ class AddEntriesTool(
 
     override val name = "addEntries"
     override val description =
-        "Anade alimentos al diario. Los foodId tienen que venir de searchFood. Se anaden SIN " +
+        "Anade alimentos o recetas al diario. Los foodId y recipeId tienen que venir de " +
+            "searchFood o de createRecipe. Se anaden SIN " +
             "marcar como comidos, para que la persona los marque segun se los coma. Cada item " +
             "acepta una cantidad fija (amount+unit) o un objetivo de nutriente " +
             "(targetNutrient+targetAmount) para que la cantidad salga calculada, no adivinada."
@@ -85,7 +89,16 @@ class AddEntriesTool(
             "items" to
                 ToolSchema.arrayOf(
                     ToolSchema.obj(
-                        "foodId" to ToolSchema.integer("El foodId devuelto por searchFood."),
+                        "foodId" to
+                            ToolSchema.integer(
+                                "Un producto: el foodId devuelto por searchFood. Usa foodId o " +
+                                    "recipeId, no los dos."
+                            ),
+                        "recipeId" to
+                            ToolSchema.integer(
+                                "Una receta: el recipeId de searchFood (kind=recipe) o de " +
+                                    "createRecipe. Con unit=serving se cuenta en raciones."
+                            ),
                         "amount" to
                             ToolSchema.number(
                                 "Cantidad en la unidad indicada. Omitelo si usas targetNutrient " +
@@ -94,7 +107,6 @@ class AddEntriesTool(
                         "unit" to unitSchema,
                         targetNutrientParam,
                         targetAmountParam,
-                        required = listOf("foodId"),
                     ),
                     "Los alimentos a anadir. Cada uno necesita 'amount' o el par " +
                         "'targetNutrient'+'targetAmount', no los dos.",
@@ -116,15 +128,21 @@ class AddEntriesTool(
         val added = mutableListOf<Triple<String, Double, Double>>()
 
         items.forEach { item ->
-            val foodId = item.longOrNull("foodId") ?: return@forEach
-            val product =
-                productRepository.observeProduct(FoodId.Product(foodId)).first() ?: return@forEach
-            val food = product.toDiaryFood()
+            // Una receta entra igual que un producto: toDiaryFood se lleva sus ingredientes,
+            // y el diario guarda su propia copia del plato, asi que editar la receta despues no
+            // cambia un dia ya pasado.
+            val source: Food =
+                item.longOrNull("recipeId")?.let { recipeRepository.findRecipe(it) }
+                    ?: item.longOrNull("foodId")?.let {
+                        productRepository.observeProduct(FoodId.Product(it)).first()
+                    }
+                    ?: return@forEach
+            val food = source.toDiaryFood()
 
             val amount = item.doubleOrNull("amount")
             val measurement =
                 if (amount != null) {
-                    measurementFrom(item.stringOrNull("unit"), amount, product.isLiquid)
+                    measurementFrom(item.stringOrNull("unit"), amount, source.isLiquid)
                 } else {
                     // Sin amount: la cantidad viene de un objetivo de nutriente ("20 g de
                     // proteina"), no de un peso que alguien haya dicho. Siempre en gramos: la
@@ -145,18 +163,20 @@ class AddEntriesTool(
                     date = date,
                     food = food,
                     createdAt = LocalDateTime.now(),
+                    createdByAssistant = true,
                 )
             created.add(id.value)
 
             val grams = food.weight(measurement)
             added.add(
-                Triple(product.headline, grams, (food.nutritionFacts.energy.value ?: 0.0) * grams / 100)
+                Triple(source.headline, grams, (food.nutritionFacts.energy.value ?: 0.0) * grams / 100)
             )
         }
 
         if (created.isEmpty()) {
             return toolError(
-                "Ninguno de los foodId existe. Vuelve a buscarlos con searchFood antes de anadir."
+                "Ninguno de los foodId/recipeId existe. Vuelve a buscarlos con searchFood antes " +
+                    "de anadir."
             )
         }
 

@@ -18,6 +18,8 @@ import com.maksimowiczm.foodyou.common.domain.food.NutritionFacts
 import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.entity.Product
 import com.maksimowiczm.foodyou.food.domain.repository.ProductRepository
+import com.maksimowiczm.foodyou.food.domain.repository.RecipeRepository
+import com.maksimowiczm.foodyou.food.infrastructure.repository.RoomRecipeRepository
 import com.maksimowiczm.foodyou.food.infrastructure.repository.RoomProductRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.ManualDiaryEntryRepository
@@ -77,6 +79,9 @@ class AssistantIntegrationTest {
 
     private val productRepository: ProductRepository = RoomProductRepository(database.productDao)
 
+    private val recipeRepository: RecipeRepository =
+        RoomRecipeRepository(database.recipeDao, RoomProductRepository(database.productDao))
+
     private val entryRepository: FoodDiaryEntryRepository =
         RoomFoodDiaryEntryRepository(database, database.measurementDao)
 
@@ -89,6 +94,7 @@ class AssistantIntegrationTest {
         RoomChangeJournal(
             dao = database.assistantDao,
             measurementDao = database.measurementDao,
+            recipeDao = database.recipeDao,
             manualRepository = manualRepository,
             conversationStore = ConversationStore(),
             json = Json { encodeDefaults = true },
@@ -154,7 +160,7 @@ class AssistantIntegrationTest {
                 logger = NoopLogger,
             )
         val result =
-            SearchFoodTool(productRepository, noopFallback)
+            SearchFoodTool(productRepository, recipeRepository, noopFallback)
                 .call(buildJsonObject { put("query", "pollo") })
 
         val array = result as JsonArray
@@ -171,7 +177,7 @@ class AssistantIntegrationTest {
 
         // --- anadir 200 g -> 330 kcal
         val added =
-            AddEntriesTool(productRepository, entryRepository, mealRepository, journal)
+            AddEntriesTool(productRepository, recipeRepository, entryRepository, mealRepository, journal)
                 .call(
                     buildJsonObject {
                         put("date", today.toString())
@@ -220,7 +226,7 @@ class AssistantIntegrationTest {
         val productId = seedProduct()
         val mealId = seedMeal()
 
-        AddEntriesTool(productRepository, entryRepository, mealRepository, journal)
+        AddEntriesTool(productRepository, recipeRepository, entryRepository, mealRepository, journal)
             .call(
                 buildJsonObject {
                     put("date", today.toString())
@@ -280,7 +286,7 @@ class AssistantIntegrationTest {
 
         // Sin unidad, el estado liquido del alimento decide: mililitros, no gramos. Es el fallo
         // que ya nos mordio una vez en la pantalla de detalle.
-        AddEntriesTool(productRepository, entryRepository, mealRepository, journal)
+        AddEntriesTool(productRepository, recipeRepository, entryRepository, mealRepository, journal)
             .call(
                 buildJsonObject {
                     put("date", today.toString())

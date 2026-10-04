@@ -7,6 +7,7 @@ import androidx.room.TypeConverters
 import androidx.room.immediateTransaction
 import androidx.room.migration.Migration
 import androidx.room.useWriterConnection
+import com.maksimowiczm.foodyou.sync.infrastructure.SyncSchemaCallback
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantChangeEntity
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantConversationEntity
 import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDatabase
@@ -21,6 +22,8 @@ import com.maksimowiczm.foodyou.app.infrastructure.room.migration.foodYou3Migrat
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.unlinkDiaryMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addAssistantConversationsMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addComposedManualEntriesMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addRecipeFavoriteMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addRecipeCategoryMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addManualEntryCategoryMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addDiaryProductCategoriesMigration
@@ -166,7 +169,7 @@ abstract class FoodYouDatabase :
         }
 
     companion object {
-        const val VERSION = 42
+        const val VERSION = 44
 
         private val migrations: List<Migration> =
             listOf(
@@ -192,6 +195,8 @@ abstract class FoodYouDatabase :
                 addManualEntryCategoryMigration,
                 addAssistantConversationsMigration,
                 addComposedManualEntriesMigration,
+                addRecipeFavoriteMigration,
+                addRecipeCategoryMigration,
             )
 
         fun Builder<FoodYouDatabase>.buildDatabase(
@@ -199,6 +204,8 @@ abstract class FoodYouDatabase :
         ): FoodYouDatabase {
             addMigrations(*migrations.toTypedArray())
             addCallback(mealsCallback)
+            // Las tablas y disparadores de la sincronización, fuera de las entidades de Room.
+            addCallback(SyncSchemaCallback())
             return build()
         }
     }

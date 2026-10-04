@@ -40,6 +40,7 @@ internal class DataStoreSettingsRepository(dataStore: DataStore<Preferences>) :
             onboardingFinished = this[SettingsPreferencesKeys.onboardingFinished] ?: false,
             energyFormat = this.getEnergyFormat(SettingsPreferencesKeys.energyFormat),
             appLaunchInfo = this.getAppLaunchInfo(),
+            dismissedUpdateBuild = this[SettingsPreferencesKeys.dismissedUpdateBuild],
         )
 
     override fun MutablePreferences.applyUserPreferences(updated: Settings) {
@@ -55,6 +56,7 @@ internal class DataStoreSettingsRepository(dataStore: DataStore<Preferences>) :
         this[SettingsPreferencesKeys.onboardingFinished] = updated.onboardingFinished
         setEnergyFormat(SettingsPreferencesKeys.energyFormat, updated.energyFormat)
         setAppLaunchInfo(updated.appLaunchInfo)
+        setWithNull(SettingsPreferencesKeys.dismissedUpdateBuild, updated.dismissedUpdateBuild)
     }
 }
 
@@ -151,4 +153,5 @@ private object SettingsPreferencesKeys {
     val firstLaunchCurrentVersionName = stringPreferencesKey("first_launch_current_version_name")
     val firstLaunchCurrentVersionEpoch = longPreferencesKey("first_launch_current_version_epoch")
     val launchesCount = intPreferencesKey("launches_count")
+    val dismissedUpdateBuild = intPreferencesKey("update:dismissedBuild")
 }

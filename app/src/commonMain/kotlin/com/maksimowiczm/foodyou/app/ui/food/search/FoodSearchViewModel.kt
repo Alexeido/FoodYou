@@ -39,6 +39,7 @@ internal class FoodSearchViewModel(
     searchHistoryRepository: FoodSearchHistoryRepository,
     private val foodSearchRepository: FoodSearchRepository,
     private val productRepository: com.maksimowiczm.foodyou.food.domain.repository.ProductRepository,
+    private val recipeRepository: com.maksimowiczm.foodyou.food.domain.repository.RecipeRepository,
     private val foodSearchUseCase: FoodSearchUseCase,
     private val dateProvider: DateProvider,
 ) : ViewModel() {
@@ -312,8 +313,13 @@ internal class FoodSearchViewModel(
     // user explicitly controls the active tab; typing filters the current tab and pressing search
     // jumps to the database tab (handled in the UI).
 
-    fun toggleFavorite(productId: FoodId.Product, newState: Boolean) {
-        viewModelScope.launch { productRepository.updateFavorite(productId, newState) }
+    fun toggleFavorite(foodId: FoodId, newState: Boolean) {
+        viewModelScope.launch {
+            when (foodId) {
+                is FoodId.Product -> productRepository.updateFavorite(foodId, newState)
+                is FoodId.Recipe -> recipeRepository.updateFavorite(foodId, newState)
+            }
+        }
     }
 }
 

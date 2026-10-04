@@ -47,7 +47,51 @@ sealed interface UndoAction {
     @Serializable
     @SerialName("restoreManualEntries")
     data class RestoreManualEntries(val rows: List<ManualEntrySnapshot>) : UndoAction
+
+    /**
+     * Undo of creating recipes: remove them from the catalogue.
+     *
+     * Safe for the diary: an entry that logged the recipe keeps its own snapshot of the dish, so
+     * the recipe going away does not change a past day.
+     */
+    @Serializable
+    @SerialName("deleteRecipes")
+    data class DeleteRecipes(val ids: List<Long>) : UndoAction
+
+    /**
+     * Undo of deleting recipes: write them back, with their original ids.
+     *
+     * Unlike manual entries the id matters here - the model may still be holding the recipeId from
+     * the turn it created it, and a redo that brought the recipe back under a new id would leave
+     * that reference pointing at nothing.
+     */
+    @Serializable
+    @SerialName("restoreRecipes")
+    data class RestoreRecipes(val rows: List<RecipeSnapshot>) : UndoAction
 }
+
+/** A Recipe row with its ingredients, flat enough to serialize and to put back as it was. */
+@Serializable
+data class RecipeSnapshot(
+    val id: Long,
+    val name: String,
+    val servings: Int,
+    val note: String?,
+    val isLiquid: Boolean,
+    val ingredients: List<RecipeIngredientSnapshot>,
+    /** Defaulted so a journal written before this field existed still reads back. */
+    val isFavorite: Boolean = false,
+    val category: String? = null,
+)
+
+/** One ingredient: exactly one of [productId] or [recipeId] is set, as in the table itself. */
+@Serializable
+data class RecipeIngredientSnapshot(
+    val productId: Long?,
+    val recipeId: Long?,
+    val measurement: MeasurementType,
+    val quantity: Double,
+)
 
 /** A Measurement row, flat enough to serialize without touching the food snapshot it points at. */
 @Serializable
@@ -63,6 +107,8 @@ data class MeasurementSnapshot(
     val createdAt: Long,
     val updatedAt: Long,
     val position: Int,
+    // Con valor por defecto para que los cambios ya guardados sigan leyendose.
+    val createdByAssistant: Boolean = false,
 )
 
 @Serializable data class EatenState(val id: Long, val isEaten: Boolean)

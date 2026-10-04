@@ -37,6 +37,7 @@ fun SettingsScreen(
     onPersonalization: () -> Unit,
     onAssistant: () -> Unit,
     onDatabase: () -> Unit,
+    onSync: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -120,6 +121,15 @@ fun SettingsScreen(
             }
 
             item {
+                SyncSettingsListItem(
+                    onClick = onSync,
+                    shape = shape,
+                    color = color,
+                    contentColor = contentColor,
+                )
+            }
+
+            item {
                 LanguageSettingsListItem(
                     onClick = onLanguage,
                     shape = shape,
@@ -142,6 +152,10 @@ fun SettingsScreen(
                     color = color,
                     contentColor = contentColor,
                 )
+            }
+
+            item {
+                UpdateSettingsListItem(shape = shape, color = color, contentColor = contentColor)
             }
 
             item {

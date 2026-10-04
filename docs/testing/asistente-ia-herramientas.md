@@ -16,7 +16,7 @@ de cambios, así que dejan una entrada en `history` y admiten `undo`.
 | Lectura del diario | `dailyTotals`, `diaryRange`, `topFoods`, `topBrands`, `nutrientAttribution`, `searchDiary`, `mealTimingStats` |
 | Contexto | `listMeals`, `goals` |
 | Catálogo | `searchFood` |
-| Escritura | `addEntries`, `updateEntry`, `deleteEntries`, `setEaten`, `createManualEntry`, `createComposedEntry` |
+| Escritura | `addEntries`, `updateEntry`, `deleteEntries`, `setEaten`, `createManualEntry`, `createRecipe` |
 | Historial | `history`, `undo`, `redo` |
 | Borrador (pad) | `padFromDay`, `padAdd`, `padRemove`, `padTotals`, `padCommit`, `padDiscard` |
 
@@ -184,14 +184,34 @@ pollo, 150 g, 248 kcal" de memoria, la semana cuadra sobre el papel y es ficció
 
 | Parámetro | Tipo | Req. | Descripción |
 |---|---|---|---|
-| `query` | string | ✅ | Qué buscar. Un término corto acierta más que una frase |
-| `limit` | integer | | Cuántos devolver. Por defecto 8 |
+| `query` | string | | Qué buscar. Un término corto acierta más que una frase |
+| `queries` | array de strings | | **Varias búsquedas a la vez** (máx. 10), en paralelo. Una de las dos es obligatoria |
+| `limit` | integer | | Cuántos devolver por búsqueda. Por defecto 8 con `query`, 5 con `queries` |
 | `sortBy` | enum (nutrientes) | | Ordena por densidad de ese nutriente por 100 g |
+
+Además de productos devuelve **las recetas de la persona** que coincidan con la búsqueda (hasta 5,
+y siempre las primeras), marcadas con `kind: "recipe"` y un `recipeId`, sus macros por 100 g, su
+peso total y la lista de ingredientes con gramos. Cada producto lleva `kind: "product"` y su
+`foodId`. Así el modelo reutiliza la hamburguesa que ya existe en vez de montar otra igual. Con
+`sortBy` no se devuelven recetas: ordenar por nutriente es buscar ingredientes.
+
+Un valor que el producto no tiene sale como `null` en `per100g`, no como `0`. Los productos a los
+que les faltan calorías o macros van **al final** y llevan un campo `incomplete`: antes se
+enseñaban con ceros y el modelo eligió una lechuga vacía que dejó el plato entero en rojo.
+
+Con `queries` la respuesta es `{"results": [{"query": "...", "items": [...]}, ...]}`, en el mismo
+orden en que se pidieron. Es la forma de buscar los ingredientes de un plato: **una** vuelta al modelo
+en vez de una por ingrediente, que es donde se va el tiempo (cada vuelta son segundos; una búsqueda
+local, milisegundos).
+
+Las recetas se buscan en el índice de texto completo de la app, así que **ignoran tildes y
+mayúsculas** ("albondigas" encuentra "Albóndigas").
 
 > **Fallback de red**: si la consulta local no devuelve nada, dispara una búsqueda real contra las
 > fuentes remotas activas (base custom, Open Food Facts, USDA) y la cachea antes de responder. Sin
 > esto, el asistente solo veía el espejo local y devolvía vacío para cualquier alimento que la
-> persona no hubiera buscado antes a mano.
+> persona no hubiera buscado antes a mano. No se dispara si ya ha aparecido una receta: la persona
+> tiene ese plato y no hace falta la búsqueda lenta.
 
 ---
 
@@ -199,8 +219,9 @@ pollo, 150 g, 248 kcal" de memoria, la semana cuadra sobre el papel y es ficció
 
 ### `addEntries` — Muta: **sí**
 
-Añade alimentos al diario. Los `foodId` tienen que venir de `searchFood`. Entran **sin marcar como
-comidos**: son una propuesta hasta que la persona los marque.
+Añade alimentos o recetas al diario. Los `foodId` y `recipeId` tienen que venir de `searchFood` o
+de `createRecipe`. Entran **sin marcar como comidos**: son una propuesta hasta que la persona los
+marque.
 
 | Parámetro | Tipo | Req. | Descripción |
 |---|---|---|---|
@@ -208,7 +229,9 @@ comidos**: son una propuesta hasta que la persona los marque.
 | `mealId` | integer | ✅ | Comida (de `listMeals`) |
 | `items[]` | array de objetos | ✅ | Ver abajo |
 
-Cada objeto de `items[]` necesita `foodId` y **una de estas dos formas** de indicar la cantidad:
+Cada objeto de `items[]` lleva **`foodId`** (un producto) **o `recipeId`** (una receta), y **una
+de estas dos formas** de indicar la cantidad. Para una receta, `unit: "serving"` cuenta en raciones
+(peso total ÷ raciones); sin unidad, en gramos.
 
 | Forma | Parámetros | Cuándo |
 |---|---|---|
@@ -271,34 +294,50 @@ encuentre nada razonable.
 > Estas entradas se marcan internamente como creadas por el asistente, así que el diario las
 > muestra con un icono de robot en vez del rayo del añadido rápido manual.
 
-### `createComposedEntry` — Muta: **sí**
+### `createRecipe` — Muta: **sí**
 
 Un plato hecho de varias cosas que se comen juntas — hamburguesa, bocadillo, plato combinado,
-ensalada — como **una sola** entrada en el diario, con la lista de lo que lleva dentro. Evita que
-comerse una hamburguesa deje seis filas sueltas que solo tienen sentido juntas.
+ensalada — como **una receta de verdad**: cada ingrediente es un alimento del catálogo con su id y
+sus gramos, y las macros **salen de los ingredientes**, nunca las escribe el modelo. Por eso luego
+se puede cambiar el peso de un ingrediente, o el de la ración entera, y los números se recalculan.
 
-Las macros son las del **plato entero**. Los ingredientes son solo el desglose que se ve al pulsar
-la fila: no llevan macros propias y nunca suman por su cuenta (si lo hicieran, se contaría todo dos
-veces).
+Queda guardada en el catálogo, así que la próxima vez que la persona coma lo mismo es una búsqueda,
+no reconstruirla. Con `date` y `mealId` además la añade al diario en el mismo paso.
 
 | Parámetro | Tipo | Req. | Descripción |
 |---|---|---|---|
-| `date` | date | ✅ | Día al que añadir |
-| `mealId` | integer | ✅ | Comida |
-| `name` | string | ✅ | Nombre del plato entero |
-| `kcal` | number | ✅ | Calorías del plato **entero** |
-| `proteins` / `carbohydrates` / `fats` | number | | Gramos del plato entero |
-| `category` | enum (39 categorías) | | Tipo de plato, para el icono del diario |
-| `ingredients[]` | array de objetos | ✅ | Lo que lleva dentro, en orden |
-| `ingredients[].name` | string | ✅ | Nombre del ingrediente |
-| `ingredients[].grams` | number | | Gramos de ese ingrediente |
+| `name` | string | ✅ | Nombre del plato |
+| `ingredients[]` | array de objetos | ✅ | Lo que lleva el plato **entero** |
+| `ingredients[].foodId` | integer | | Un producto de `searchFood` |
+| `ingredients[].recipeId` | integer | | Otra receta como ingrediente (una salsa casera) |
+| `ingredients[].amount` | number | ✅ | Cuánto lleva de eso |
+| `ingredients[].unit` | enum | | Unidad; por defecto gramos (o ml si es líquido) |
+| `servings` | integer | | Raciones que salen del plato entero. Por defecto 1 |
+| `category` | enum | | Categoría para el icono (mismas que `createManualEntry`). Por defecto `PLATOS_PREPARADOS` |
+| `isLiquid` | boolean | | Bebidas y sopas |
+| `note` | string | | Nota de la receta |
+| `date` + `mealId` | date + integer | | Para añadirla también al diario. Los dos o ninguno |
+| `eatenAmount` + `eatenUnit` | number + enum | | Cuánto se ha comido si no es el plato entero |
 
-> El flujo recomendado en el prompt es: buscar cada ingrediente con `searchFood` para obtener macros
-> reales, sumarlas, y registrar el resultado con esta herramienta — la búsqueda es cómo se llega a
-> números honestos, no una excusa para dejar el diario lleno de filas.
+**Todo o nada**: si un ingrediente no existe, no tiene cantidad, está en raciones y el alimento no
+sabe cuánto pesa una ración, o **le faltan calorías o macros**, no se crea nada y el error dice cuál. Saltarlo en silencio daría un
+plato con las macros mal.
 
-> En el diario, estas entradas llevan un icono propio de plato compuesto (además del de robot) y,
-> al pulsarlas, la hoja inferior despliega los ingredientes con sus gramos.
+La entrada queda marcada como creada por el asistente (robot en el diario, igual que con
+`addEntries` y `padCommit`).
+
+Sin `eatenAmount` se añade el plato entero, en gramos (o ml): en el diario se lee mejor que "1
+envase" y se edita igual.
+
+**Deshacer** se lleva la entrada del diario y la receta a la vez (un solo punto de historial).
+Rehacer la devuelve **con el mismo `recipeId`**, para que el modelo no se quede apuntando a nada.
+
+> El flujo que pide el prompt: buscar primero el plato con `searchFood`; si ya es una receta suya,
+> `addEntries` con su `recipeId`. Si no, buscar cada ingrediente por separado y pasarlos aquí.
+
+> **Sustituye a `createComposedEntry`**, que guardaba el plato como una entrada manual con las
+> macros fijas y los ingredientes como simple texto. Las entradas que ya se crearon así siguen en
+> el diario tal cual; simplemente ya no se crean nuevas.
 
 ---
 
@@ -343,14 +382,15 @@ Empieza un borrador copiando lo que ya hay en un día.
 
 ### `padAdd` — Muta: no
 
-Añade un alimento al borrador. Devuelve un `ref` que sirve para quitarlo luego. Acepta la misma
+Añade un alimento o una receta al borrador. Devuelve un `ref` que sirve para quitarlo luego. Acepta la misma
 cantidad fija o el mismo objetivo de nutriente que `addEntries` (ver su sección arriba).
 
 | Parámetro | Tipo | Req. | Descripción |
 |---|---|---|---|
 | `date` | date | ✅ | Día del borrador |
 | `mealId` | integer | ✅ | Comida a la que iría |
-| `foodId` | integer | ✅ | El `foodId` de `searchFood` |
+| `foodId` | integer | | Un producto: el `foodId` de `searchFood` |
+| `recipeId` | integer | | Una receta: el `recipeId` de `searchFood`. Uno de los dos es obligatorio |
 | `amount` | number | | Cantidad. Omitir si se usa `targetNutrient` |
 | `unit` | string | | Unidad. Por defecto gramos, o mililitros si es líquido |
 | `targetNutrient` / `targetAmount` | enum / number | | Alternativa a `amount`: calcula los gramos para llegar a esta cantidad de un nutriente |
@@ -383,6 +423,16 @@ Deja un único punto de historial. *Sin parámetros.*
 Descarta el borrador entero. No deja rastro. *Sin parámetros.*
 
 ---
+
+# Herramientas en paralelo
+
+Si el modelo pide varias herramientas en la misma respuesta y **todas** son de lectura pura
+(`searchFood`, `dailyTotals`, `diaryRange`, `topFoods`, `topBrands`, `nutrientAttribution`,
+`searchDiary`, `mealTimingStats`, `listMeals`, `goals`, `history`), se ejecutan a la vez. Basta con
+que una escriba para que todas vayan en orden: lo que viene después puede depender de ella, y el
+journal registra los cambios en el orden en que pasan. Las del borrador tampoco van en paralelo
+aunque no toquen el diario: modifican el borrador en memoria y se pisarían. Lo decide cada
+herramienta con `runsConcurrently` (por defecto `false`), no `mutates`.
 
 # Cómo se le comunican las function calls
 

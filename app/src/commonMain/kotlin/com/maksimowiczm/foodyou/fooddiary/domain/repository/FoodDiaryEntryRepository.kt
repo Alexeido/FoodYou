@@ -30,6 +30,7 @@ interface FoodDiaryEntryRepository {
         date: LocalDate,
         food: DiaryFood,
         createdAt: LocalDateTime,
+        createdByAssistant: Boolean = false,
     ): FoodDiaryEntryId
 
     suspend fun update(entry: FoodDiaryEntry)

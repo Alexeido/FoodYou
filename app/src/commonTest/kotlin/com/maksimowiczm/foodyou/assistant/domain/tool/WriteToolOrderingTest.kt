@@ -95,6 +95,7 @@ class WriteToolOrderingTest {
             date: LocalDate,
             food: DiaryFood,
             createdAt: LocalDateTime,
+            createdByAssistant: Boolean,
         ): FoodDiaryEntryId = error("not needed")
 
         override suspend fun update(entry: FoodDiaryEntry) = error("not needed")

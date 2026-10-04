@@ -22,6 +22,11 @@ data class Recipe(
     val ingredients: List<RecipeIngredient>,
     val note: String?,
     override val isLiquid: Boolean,
+    /**
+     * [com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory] name, so a dish shows its own icon
+     * instead of the unknown one. Null when nobody chose one; the UI then guesses.
+     */
+    val category: String? = null,
 ) : Food {
     override val headline: String = name
 
