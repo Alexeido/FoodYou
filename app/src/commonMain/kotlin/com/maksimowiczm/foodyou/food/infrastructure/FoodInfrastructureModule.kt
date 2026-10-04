@@ -5,6 +5,7 @@ import com.maksimowiczm.foodyou.food.domain.repository.FoodMeasurementSuggestion
 import com.maksimowiczm.foodyou.food.domain.repository.ProductRepository
 import com.maksimowiczm.foodyou.food.domain.repository.RecipeRepository
 import com.maksimowiczm.foodyou.food.domain.repository.RemoteProductRequestFactory
+import com.maksimowiczm.foodyou.food.infrastructure.customsource.customFoodSourceModule
 import com.maksimowiczm.foodyou.food.infrastructure.network.RemoteProductMapper
 import com.maksimowiczm.foodyou.food.infrastructure.network.RemoteProductRequestFactoryImpl
 import com.maksimowiczm.foodyou.food.infrastructure.openfoodfacts.openFoodFactsModule
@@ -35,6 +36,7 @@ fun Module.foodInfrastructureModule() {
 
     USDAModule()
     openFoodFactsModule()
+    customFoodSourceModule()
 }
 
 private val Scope.database: FoodDatabase

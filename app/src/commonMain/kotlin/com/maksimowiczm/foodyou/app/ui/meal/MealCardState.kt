@@ -34,14 +34,17 @@ internal fun rememberMealCardState(meal: MealModel?): MealCardState {
 
     val isAllDay = rememberSaveable(meal) { mutableStateOf(meal?.isAllDay ?: false) }
 
+    val icon = rememberSaveable(meal) { mutableStateOf(meal?.icon) }
+
     val isModified =
-        remember(name, fromTime, toTime) {
+        remember(name, fromTime, toTime, icon) {
             derivedStateOf {
                 if (meal != null) {
                     val input =
                         name.value != meal.name ||
                             fromTime.value != meal.from ||
-                            toTime.value != meal.to
+                            toTime.value != meal.to ||
+                            icon.value != meal.icon
 
                     if (meal.isAllDay) {
                         input
@@ -49,18 +52,19 @@ internal fun rememberMealCardState(meal: MealModel?): MealCardState {
                         input || isAllDay.value != meal.isAllDay
                     }
                 } else {
-                    name.value.isNotEmpty()
+                    name.value.isNotEmpty() || icon.value != null
                 }
             }
         }
 
-    return remember(name, fromTime, toTime, isModified, isAllDay) {
+    return remember(name, fromTime, toTime, isModified, isAllDay, icon) {
         MealCardState(
             name = name,
             fromTime = fromTime,
             toTime = toTime,
             isAllDay = isAllDay,
             isModified = isModified,
+            icon = icon,
         )
     }
 }
@@ -71,11 +75,13 @@ internal class MealCardState(
     toTime: MutableState<LocalTime>,
     isModified: State<Boolean>,
     isAllDay: MutableState<Boolean>,
+    icon: MutableState<String?>,
 ) {
     var fromTime by fromTime
     var toTime by toTime
     val isModified by isModified
     var isAllDay by isAllDay
+    var icon by icon
 
     val isValid by derivedStateOf { name.error == null }
 
@@ -86,5 +92,6 @@ internal class MealCardState(
             from = fromTime,
             to = if (isAllDay) fromTime else toTime,
             isAllDay = isAllDay,
+            icon = icon,
         )
 }

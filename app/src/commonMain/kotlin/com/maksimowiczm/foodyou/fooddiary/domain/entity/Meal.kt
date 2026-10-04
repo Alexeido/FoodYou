@@ -10,6 +10,7 @@ import kotlinx.datetime.LocalTime
  * @property from Start time of the meal.
  * @property to End time of the meal.
  * @property rank Order of the meal in the day (e.g., 1 for Breakfast, 2 for Lunch, etc.).
+ * @property icon Optional icon reference for the section: `mat:<id>` (Material icon) or `emoji:<char>`.
  */
 data class Meal(
     val id: Long,
@@ -17,4 +18,5 @@ data class Meal(
     val from: LocalTime,
     val to: LocalTime,
     val rank: Int,
+    val icon: String? = null,
 )

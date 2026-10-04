@@ -10,7 +10,11 @@ data class Settings(
     val secureScreen: Boolean,
     val homeCardOrder: List<HomeCard>,
     val expandGoalCard: Boolean,
+    val goalsCardStyle: GoalsCardStyle,
+    val goalsFigureValue: GoalsFigureValue,
     val onboardingFinished: Boolean,
     val energyFormat: EnergyFormat,
     val appLaunchInfo: AppLaunchInfo,
+    /** Compilación estable para la que se pulsó "Más tarde": de esa ya no se vuelve a avisar. */
+    val dismissedUpdateBuild: Int? = null,
 ) : UserPreferences

@@ -1,5 +1,6 @@
 package com.maksimowiczm.foodyou.fooddiary.infrastructure.room
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -40,4 +41,7 @@ data class MeasurementEntity(
 
     /** User-defined position for ordering within a meal+day. Lower = earlier. */
     val position: Int = 0,
+
+    /** Logged by the AI assistant rather than by hand, so the diary can flag it for review. */
+    @ColumnInfo(defaultValue = "0") val createdByAssistant: Boolean = false,
 )

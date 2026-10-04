@@ -34,6 +34,7 @@ sealed interface FoodSearch {
         override val id: FoodId.Recipe,
         override val headline: String,
         override val isLiquid: Boolean,
+        val isFavorite: Boolean = false,
         override val suggestedMeasurement: Measurement,
     ) : FoodSearch
 }

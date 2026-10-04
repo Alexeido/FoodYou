@@ -34,6 +34,7 @@ private fun Recipe.toDiaryRecipe(): DiaryFoodRecipe =
         ingredients = ingredients.map { it.toDiaryRecipeIngredient() },
         isLiquid = isLiquid,
         note = note,
+        category = category,
     )
 
 private fun RecipeIngredient.toDiaryRecipeIngredient(): DiaryFoodRecipeIngredient =

@@ -67,6 +67,9 @@ class UpdateProductUseCase(
                     source = source,
                     isLiquid = isLiquid,
                     categories = categories,
+                    // Mark as user-edited: keeps sourceBarcode as identity anchor, protects the row
+                    // from the stale-mirror purge and from passive re-search overwrites.
+                    isEdited = true,
                 )
 
             productRepository.updateProduct(updatedProduct)

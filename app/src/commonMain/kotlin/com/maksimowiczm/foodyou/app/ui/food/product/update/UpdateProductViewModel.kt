@@ -11,9 +11,13 @@ import com.maksimowiczm.foodyou.common.result.onSuccess
 import com.maksimowiczm.foodyou.food.domain.entity.FoodId
 import com.maksimowiczm.foodyou.food.domain.entity.Product
 import com.maksimowiczm.foodyou.food.domain.usecase.ObserveFoodUseCase
+import com.maksimowiczm.foodyou.food.domain.usecase.RefreshProductResult
+import com.maksimowiczm.foodyou.food.domain.usecase.RefreshProductUseCase
 import com.maksimowiczm.foodyou.food.domain.usecase.UpdateProductUseCase
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -22,6 +26,7 @@ import kotlinx.coroutines.launch
 internal class UpdateProductViewModel(
     observeFoodUseCase: ObserveFoodUseCase,
     private val updateProductUseCase: UpdateProductUseCase,
+    private val refreshProductUseCase: RefreshProductUseCase,
     private val productId: FoodId.Product,
 ) : ViewModel() {
 
@@ -31,8 +36,32 @@ internal class UpdateProductViewModel(
             .mapNotNull { it as Product }
             .stateIn(scope = viewModelScope, initialValue = null, started = WhileSubscribed(2_000))
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
     private val eventBus = Channel<UpdateProductEvent>()
     val events = eventBus.receiveAsFlow()
+
+    fun refresh() {
+        if (_isRefreshing.value) return
+
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = refreshProductUseCase.refresh(productId)
+            _isRefreshing.value = false
+
+            val event =
+                when (result) {
+                    RefreshProductResult.Updated -> UpdateProductEvent.Refreshed
+                    RefreshProductResult.NoSource -> UpdateProductEvent.RefreshNoSource
+                    RefreshProductResult.ProductNotFound,
+                    RefreshProductResult.NotFoundOnSource -> UpdateProductEvent.RefreshNotFound
+                    RefreshProductResult.Unauthorized -> UpdateProductEvent.RefreshUnauthorized
+                    RefreshProductResult.Error -> UpdateProductEvent.RefreshError
+                }
+            eventBus.send(event)
+        }
+    }
 
     fun updateProduct(form: ProductFormState) {
         if (!form.isValid) {

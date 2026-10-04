@@ -2,11 +2,19 @@ package com.maksimowiczm.foodyou.app.ui.home.meals.card
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,12 +22,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.LunchDining
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
@@ -33,6 +48,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -41,11 +57,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.maksimowiczm.foodyou.app.ui.common.theme.LocalNutrientsPalette
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalEnergyFormatter
 import com.maksimowiczm.foodyou.app.ui.common.utility.LocalNutrientsOrder
@@ -55,9 +78,11 @@ import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCard
 import com.maksimowiczm.foodyou.app.ui.home.shared.FoodYouHomeCardDefaults
 import com.maksimowiczm.foodyou.common.compose.utility.LocalDateFormatter
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.ManualEntryIngredient
 import com.maksimowiczm.foodyou.settings.domain.entity.NutrientsOrder
 import foodyou.app.generated.resources.*
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 
@@ -94,16 +119,24 @@ internal fun MealCard(
 
     FoodYouHomeCard(modifier = modifier, onClick = onAddFood, onLongClick = onLongClick) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(
-                text = meal.name,
-                style = MaterialTheme.typography.headlineMediumEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = timeString,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = meal.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = timeString,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                MealTotals(meal)
+            }
 
             Spacer(Modifier.height(16.dp))
 
@@ -132,80 +165,7 @@ internal fun MealCard(
                 Spacer(Modifier.height(16.dp))
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    ValueColumn(
-                        label = energyFormatter.suffix(),
-                        value = energyFormatter.formatEnergy(meal.energy, withSuffix = false),
-                        suffix = null,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-
-                    nutrientsOrder.forEach { field ->
-                        when (field) {
-                            NutrientsOrder.Proteins ->
-                                ValueColumn(
-                                    label = stringResource(Res.string.nutriment_proteins_short),
-                                    value = meal.proteins.formatClipZeros("%.1f"),
-                                    suffix = stringResource(Res.string.unit_gram_short),
-                                    color = nutrientsPalette.proteinsOnSurfaceContainer,
-                                )
-
-                            NutrientsOrder.Carbohydrates ->
-                                ValueColumn(
-                                    label =
-                                        stringResource(Res.string.nutriment_carbohydrates_short),
-                                    value = meal.carbohydrates.formatClipZeros("%.1f"),
-                                    suffix = stringResource(Res.string.unit_gram_short),
-                                    color = nutrientsPalette.carbohydratesOnSurfaceContainer,
-                                )
-
-                            NutrientsOrder.Fats ->
-                                ValueColumn(
-                                    label = stringResource(Res.string.nutriment_fats_short),
-                                    value = meal.fats.formatClipZeros("%.1f"),
-                                    suffix = stringResource(Res.string.unit_gram_short),
-                                    color = nutrientsPalette.fatsOnSurfaceContainer,
-                                )
-
-                            NutrientsOrder.Other,
-                            NutrientsOrder.Vitamins,
-                            NutrientsOrder.Minerals -> Unit
-                        }
-                    }
-                }
-
-                Spacer(Modifier.weight(1f))
-                FilledTonalIconButton(
-                    onClick = onQuickAdd,
-                    shapes =
-                        IconButtonDefaults.shapes(
-                            MaterialTheme.shapes.medium,
-                            MaterialTheme.shapes.extraSmall,
-                        ),
-                ) {
-                    Icon(imageVector = Icons.Outlined.Bolt, contentDescription = null)
-                }
-                FilledIconButton(
-                    onClick = onAddFood,
-                    shapes =
-                        IconButtonDefaults.shapes(
-                            MaterialTheme.shapes.medium,
-                            MaterialTheme.shapes.extraSmall,
-                        ),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(Res.string.action_add),
-                    )
-                }
-            }
+            MealActions(onAddFood = onAddFood, onQuickAdd = onQuickAdd)
         }
     }
 }
@@ -218,7 +178,7 @@ private fun FoodContainer(
     onToggleEaten: (MealEntryModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         foods.forEachIndexed { i, entry ->
             val key =
                 remember(entry) {
@@ -229,11 +189,7 @@ private fun FoodContainer(
                 }
 
             key(key) {
-                val topStart = animateTopCornerRadius(i)
-                val topEnd = animateTopCornerRadius(i)
-                val bottomStart = foods.animateBottomCornerRadius(i)
-                val bottomEnd = foods.animateBottomCornerRadius(i)
-                val shape = RoundedCornerShape(topStart, topEnd, bottomStart, bottomEnd)
+                val shape = RoundedCornerShape(16.dp)
 
                 FoodContainerItem(
                     entry = entry,
@@ -319,6 +275,161 @@ private fun FoodContainerItem(
     )
 }
 
+/**
+ * The meal's totals, rendered compactly for the card header: energy on top, macros underneath.
+ *
+ * Lives in the header on purpose — when a meal holds a single food, a separate totals row at the
+ * bottom repeats that food's numbers verbatim. Renders nothing when nothing is ticked as eaten,
+ * which is also what the old footer showed as a row of dashes.
+ */
+@Composable
+private fun MealTotals(meal: MealModel, modifier: Modifier = Modifier) {
+    val nutrientsPalette = LocalNutrientsPalette.current
+    val nutrientsOrder = LocalNutrientsOrder.current
+    val energyFormatter = LocalEnergyFormatter.current
+
+    // Values are animated rather than swapped: moving a food between meals should read as the
+    // totals moving, not as two numbers blinking.
+    val spec = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
+    val energy by animateIntAsState(meal.energy, animationSpec = tween(400))
+    val proteins by animateFloatAsState(meal.proteins.toFloat(), animationSpec = spec)
+    val fats by animateFloatAsState(meal.fats.toFloat(), animationSpec = spec)
+    val carbohydrates by animateFloatAsState(meal.carbohydrates.toFloat(), animationSpec = spec)
+
+    AnimatedVisibility(
+        visible = meal.energy > 0,
+        enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+        exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End),
+        modifier = modifier,
+    ) {
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = energyFormatter.formatEnergy(energy),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                CompositionLocalProvider(
+                    LocalTextStyle provides
+                        MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp)
+                ) {
+                    val fields = nutrientsOrder.filter { it in MACRO_FIELDS }
+                    fields.forEachIndexed { index, field ->
+                        val (value, color) =
+                            when (field) {
+                                NutrientsOrder.Proteins ->
+                                    proteins to nutrientsPalette.proteinsOnSurfaceContainer
+                                NutrientsOrder.Fats ->
+                                    fats to nutrientsPalette.fatsOnSurfaceContainer
+                                else ->
+                                    carbohydrates to
+                                        nutrientsPalette.carbohydratesOnSurfaceContainer
+                            }
+
+                        Text(
+                            text = value.toDouble().formatClipZeros("%.1f") + field.shortLetter(),
+                            color = color,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (index != fields.lastIndex) {
+                            Text(text = "·", color = MaterialTheme.colorScheme.outline)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val MACRO_FIELDS =
+    listOf(NutrientsOrder.Proteins, NutrientsOrder.Fats, NutrientsOrder.Carbohydrates)
+
+/** P / G / C — the compact macro letters used across the diary and search rows. */
+internal fun NutrientsOrder.shortLetter(): String =
+    when (this) {
+        NutrientsOrder.Proteins -> "P"
+        NutrientsOrder.Fats -> "G"
+        NutrientsOrder.Carbohydrates -> "C"
+        else -> ""
+    }
+
+/** Dashed outline used by the "add food" button, matching the approved mock. */
+internal fun Modifier.dashedBorder(color: Color, cornerRadius: Dp, strokeWidth: Dp = 1.5.dp) =
+    this.drawBehind {
+        val stroke =
+            Stroke(
+                width = strokeWidth.toPx(),
+                pathEffect =
+                    PathEffect.dashPathEffect(
+                        floatArrayOf(6.dp.toPx(), 5.dp.toPx()),
+                        0f,
+                    ),
+            )
+        drawRoundRect(
+            color = color,
+            style = stroke,
+            cornerRadius = CornerRadius(cornerRadius.toPx()),
+        )
+    }
+
+/** Circular quick-add plus a dashed "add food" pill — the only content of a meal footer. */
+@Composable
+private fun MealActions(
+    onAddFood: () -> Unit,
+    onQuickAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            onClick = onQuickAdd,
+            modifier = Modifier.size(38.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.Bolt,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
+        Box(
+            modifier =
+                Modifier.weight(1f)
+                    .height(38.dp)
+                    .clip(CircleShape)
+                    .dashedBorder(MaterialTheme.colorScheme.outline, 19.dp)
+                    .clickable(onClick = onAddFood),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = stringResource(Res.string.action_add),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun ValueColumn(
     label: String,
@@ -376,6 +487,14 @@ private fun BottomSheetContent(
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RectangleShape,
         )
+
+        // Solo los platos compuestos traen desglose. Va justo debajo de la fila y antes de las
+        // acciones porque es lo que se viene a ver al tocar una hamburguesa: que llevaba dentro.
+        if (entry is ManualMealEntryModel && entry.isComposed) {
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            IngredientsSection(entry.ingredients)
+        }
+
         HorizontalDivider(Modifier.padding(horizontal = 16.dp))
         ListItem(
             headlineContent = { Text(stringResource(Res.string.action_edit_entry)) },
@@ -396,6 +515,82 @@ private fun BottomSheetContent(
                     containerColor = Color.Transparent,
                 ),
         )
+    }
+}
+
+/**
+ * What a composed dish was made of, as an expandable list.
+ *
+ * Open by default: it is the reason the sheet was opened. Collapsible anyway because a dish with a
+ * dozen components would otherwise push the edit and delete actions off the bottom of the screen.
+ */
+@Composable
+private fun IngredientsSection(
+    ingredients: List<ManualEntryIngredient>,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+
+    Column(modifier = modifier) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    pluralStringResource(
+                        Res.plurals.description_ingredient_count,
+                        ingredients.size,
+                        ingredients.size,
+                    )
+                )
+            },
+            modifier = Modifier.clickable { expanded = !expanded },
+            leadingContent = {
+                Icon(imageVector = Icons.Outlined.LunchDining, contentDescription = null)
+            },
+            trailingContent = {
+                Icon(
+                    imageVector =
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                ingredients.forEach { ingredient ->
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(start = 56.dp, end = 24.dp, top = 6.dp, bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = ingredient.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        ingredient.grams?.let {
+                            Text(
+                                text = "${it.formatClipZeros("%.1f")} g",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = stringResource(Res.string.description_composed_food_explainer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 56.dp, end = 24.dp, top = 6.dp),
+                )
+            }
+        }
     }
 }
 
@@ -430,6 +625,7 @@ private fun DeleteDialog(onDismissRequest: () -> Unit, onDeleteEntry: () -> Unit
 internal fun MealCardHeaderSection(
     meal: MealModel,
     onAddFood: () -> Unit,
+    onQuickAdd: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -450,28 +646,103 @@ internal fun MealCardHeaderSection(
             }
         }
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = FoodYouHomeCardDefaults.color,
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+    // No surface behind the header: in the approved design only the food rows carry a background,
+    // which is what stops every meal reading as a heavy boxed section.
+    //
+    // Empty and filled headers are different layouts, so every difference between them is
+    // interpolated (type sizes, padding) or faded (icon, totals, buttons) rather than swapped —
+    // dropping the first food into a meal should morph, not blink.
+    val isEmpty = meal.foods.isEmpty()
+    val sizeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
+    val nameSize by animateFloatAsState(if (isEmpty) 15f else 19f, animationSpec = sizeSpec)
+    val timeSize by animateFloatAsState(if (isEmpty) 11.5f else 12f, animationSpec = sizeSpec)
+    val verticalPadding by animateDpAsState(if (isEmpty) 6.dp else 10.dp)
+
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .combinedClickable(onLongClick = onLongClick, onClick = onAddFood)
+                .padding(horizontal = 4.dp, vertical = verticalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .combinedClickable(onLongClick = onLongClick, onClick = onAddFood)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+        AnimatedVisibility(
+            visible = isEmpty,
+            enter = fadeIn() + expandHorizontally(),
+            exit = fadeOut() + shrinkHorizontally(),
         ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(34.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.Restaurant,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = meal.name,
-                style = MaterialTheme.typography.headlineMediumEmphasized,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = nameSize.sp),
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = timeString,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = timeSize.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+
+        AnimatedVisibility(
+            visible = isEmpty,
+            enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+            exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    onClick = onQuickAdd,
+                    modifier = Modifier.size(34.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Bolt,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+                Surface(
+                    onClick = onAddFood,
+                    modifier = Modifier.size(34.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(Res.string.action_add),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        MealTotals(meal)
     }
 }
 
@@ -482,91 +753,19 @@ internal fun MealCardFooterSection(
     onQuickAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val nutrientsPalette = LocalNutrientsPalette.current
-    val nutrientsOrder = LocalNutrientsOrder.current
-    val energyFormatter = LocalEnergyFormatter.current
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = FoodYouHomeCardDefaults.color,
-        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+    // The compact header already carries the actions for an empty meal, so the footer collapses —
+    // animated so the card grows into place instead of popping.
+    AnimatedVisibility(
+        visible = meal.foods.isNotEmpty(),
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+        modifier = modifier,
     ) {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                ValueColumn(
-                    label = energyFormatter.suffix(),
-                    value = energyFormatter.formatEnergy(meal.energy, withSuffix = false),
-                    suffix = null,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                nutrientsOrder.forEach { field ->
-                    when (field) {
-                        NutrientsOrder.Proteins ->
-                            ValueColumn(
-                                label = stringResource(Res.string.nutriment_proteins_short),
-                                value = meal.proteins.formatClipZeros("%.1f"),
-                                suffix = stringResource(Res.string.unit_gram_short),
-                                color = nutrientsPalette.proteinsOnSurfaceContainer,
-                            )
-
-                        NutrientsOrder.Carbohydrates ->
-                            ValueColumn(
-                                label =
-                                    stringResource(Res.string.nutriment_carbohydrates_short),
-                                value = meal.carbohydrates.formatClipZeros("%.1f"),
-                                suffix = stringResource(Res.string.unit_gram_short),
-                                color = nutrientsPalette.carbohydratesOnSurfaceContainer,
-                            )
-
-                        NutrientsOrder.Fats ->
-                            ValueColumn(
-                                label = stringResource(Res.string.nutriment_fats_short),
-                                value = meal.fats.formatClipZeros("%.1f"),
-                                suffix = stringResource(Res.string.unit_gram_short),
-                                color = nutrientsPalette.fatsOnSurfaceContainer,
-                            )
-
-                        NutrientsOrder.Other,
-                        NutrientsOrder.Vitamins,
-                        NutrientsOrder.Minerals -> Unit
-                    }
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            FilledTonalIconButton(
-                onClick = onQuickAdd,
-                shapes =
-                    IconButtonDefaults.shapes(
-                        MaterialTheme.shapes.medium,
-                        MaterialTheme.shapes.extraSmall,
-                    ),
-            ) {
-                Icon(imageVector = Icons.Outlined.Bolt, contentDescription = null)
-            }
-            FilledIconButton(
-                onClick = onAddFood,
-                shapes =
-                    IconButtonDefaults.shapes(
-                        MaterialTheme.shapes.medium,
-                        MaterialTheme.shapes.extraSmall,
-                    ),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.action_add),
-                )
-            }
-        }
+        MealActions(
+            onAddFood = onAddFood,
+            onQuickAdd = onQuickAdd,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+        )
     }
 }
 
@@ -583,9 +782,8 @@ internal fun MealCardEntrySection(
     onDragStopped: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val topRadius = if (isFirstInGroup) 12.dp else 0.dp
-    val bottomRadius = if (isLastInGroup) 12.dp else 0.dp
-    val shape = RoundedCornerShape(topRadius, topRadius, bottomRadius, bottomRadius)
+    // Every entry is its own rounded card with a gap below, instead of merging into one block.
+    val shape = RoundedCornerShape(16.dp)
 
     var showBottomSheet by rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -624,6 +822,7 @@ internal fun MealCardEntrySection(
         modifier =
             modifier
                 .fillMaxWidth()
+                .padding(bottom = 8.dp)
                 .clickable { showBottomSheet = true }
                 .hapticDraggableHandle(onDragStopped = onDragStopped),
         onToggleEaten = onToggleEaten,

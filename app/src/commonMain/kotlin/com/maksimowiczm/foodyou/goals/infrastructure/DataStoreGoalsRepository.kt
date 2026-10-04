@@ -8,12 +8,23 @@ import com.maksimowiczm.foodyou.goals.domain.entity.DailyGoal
 import com.maksimowiczm.foodyou.goals.domain.entity.MacronutrientGoal
 import com.maksimowiczm.foodyou.goals.domain.entity.WeeklyGoals
 import com.maksimowiczm.foodyou.goals.domain.repository.GoalsRepository
+import com.maksimowiczm.foodyou.sync.domain.SyncedGoals
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 
 internal class DataStoreGoalsRepository(private val dataStore: DataStore<Preferences>) :
     GoalsRepository {
@@ -33,6 +44,17 @@ internal class DataStoreGoalsRepository(private val dataStore: DataStore<Prefere
             } ?: WeeklyGoals.defaultGoals
         }
 
+    override fun observeTrackedNutrients(): Flow<List<NutritionFactsField>> =
+        dataStore.data.map { decodeTracked(it[GoalsDataStoreKeys.trackedNutrients]) }
+
+    override suspend fun setTrackedNutrients(fields: List<NutritionFactsField>) {
+        dataStore.updateData {
+            it.toMutablePreferences().apply {
+                set(GoalsDataStoreKeys.trackedNutrients, encodeTracked(fields))
+            }
+        }
+    }
+
     override fun observeDailyGoals(date: LocalDate): Flow<DailyGoal> =
         observeWeeklyGoals().map {
             when (date.dayOfWeek) {
@@ -49,6 +71,98 @@ internal class DataStoreGoalsRepository(private val dataStore: DataStore<Prefere
 
 private object GoalsDataStoreKeys {
     val weeklyGoals = stringPreferencesKey("fooddiary:weekly_goals_2")
+    val trackedNutrients = stringPreferencesKey("goals:tracked_nutrients")
+}
+
+/** Comma-separated field names; unknown ones (from a newer version) are skipped. */
+private fun decodeTracked(value: String?): List<NutritionFactsField> =
+    value
+        .orEmpty()
+        .split(',')
+        .mapNotNull { name -> NutritionFactsField.entries.firstOrNull { it.name == name.trim() } }
+        .filter { it !in macroFields }
+        .distinct()
+
+private fun encodeTracked(fields: List<NutritionFactsField>): String =
+    fields.filter { it !in macroFields }.distinct().joinToString(",") { it.name }
+
+private val macroFields =
+        setOf(
+            NutritionFactsField.Energy,
+            NutritionFactsField.Proteins,
+            NutritionFactsField.Fats,
+            NutritionFactsField.Carbohydrates,
+        )
+
+/**
+ * The goals as one sync document (docs/sync/protocol.md, kind `goals`): the same shape the app
+ * stores them in, so every device of the account - and the MCP - works with the same goals.
+ *
+ * - `separateDays`: whether each weekday has its own goals.
+ * - `days`: `{"monday": {"map": {"Energy": 2000, "Proteins": 0.2, ...}, "isDistribution": true}, ...}`
+ *   in grams; with `isDistribution`, Proteins/Fats/Carbohydrates are shares of the energy.
+ * - `tracked`: the nutrients the person wants to reach, e.g. `["Calcium"]`.
+ */
+internal class GoalsSyncAdapter(private val dataStore: DataStore<Preferences>) :
+    SyncedGoals {
+
+    private val json = Json { encodeDefaults = true }
+
+    override val changes: Flow<Any> =
+        dataStore.data
+            .map { it[GoalsDataStoreKeys.weeklyGoals] to it[GoalsDataStoreKeys.trackedNutrients] }
+            .distinctUntilChanged()
+
+    override suspend fun read(): Map<String, JsonElement> = encode(dataStore.data.first())
+
+    override suspend fun apply(fields: Map<String, JsonElement>) {
+        dataStore.updateData { preferences ->
+            val current = encode(preferences)
+            val separate = fields[SEPARATE] ?: current.getValue(SEPARATE)
+            val days = fields[DAYS] as? JsonObject ?: current.getValue(DAYS) as JsonObject
+            val weekly =
+                runCatching {
+                        json
+                            .decodeFromJsonElement<DataStoreWeeklyGoals>(
+                                JsonObject(days + ("useSeparateGoals" to separate))
+                            )
+                            .also { it.toWeeklyGoals() } // that it makes sense, or keep ours
+                    }
+                    .getOrNull()
+            val tracked =
+                (fields[TRACKED] as? JsonArray)
+                    ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                    ?.joinToString(",")
+            preferences.toMutablePreferences().apply {
+                weekly?.let { set(GoalsDataStoreKeys.weeklyGoals, json.encodeToString(it)) }
+                tracked?.let { set(GoalsDataStoreKeys.trackedNutrients, encodeTracked(decodeTracked(it))) }
+            }
+        }
+    }
+
+    private fun encode(preferences: Preferences): Map<String, JsonElement> {
+        val weekly =
+            preferences[GoalsDataStoreKeys.weeklyGoals]?.let {
+                runCatching { json.decodeFromString<DataStoreWeeklyGoals>(it) }.getOrNull()
+            } ?: DataStoreWeeklyGoals(WeeklyGoals.defaultGoals)
+        val obj = json.encodeToJsonElement(weekly).jsonObject
+        return mapOf(
+            SEPARATE to obj.getValue("useSeparateGoals"),
+            DAYS to JsonObject(obj - "useSeparateGoals"),
+            TRACKED to
+                JsonArray(
+                    decodeTracked(preferences[GoalsDataStoreKeys.trackedNutrients]).map {
+                        JsonPrimitive(it.name)
+                    }
+                ),
+        )
+    }
+
+    private companion object {
+        const val SEPARATE = "separateDays"
+        const val DAYS = "days"
+        const val TRACKED = "tracked"
+    }
 }
 
 @Serializable

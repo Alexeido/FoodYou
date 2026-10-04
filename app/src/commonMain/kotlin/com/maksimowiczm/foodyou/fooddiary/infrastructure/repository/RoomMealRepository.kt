@@ -15,12 +15,23 @@ internal class RoomMealRepository(private val mealDao: MealDao) : MealRepository
     override fun observeMeals(): Flow<List<Meal>> =
         mealDao.observeMeals().map { meals -> meals.map { it.toModel() } }
 
-    override suspend fun insertMealWithLastRank(name: String, from: LocalTime, to: LocalTime) {
-        val meal = Meal(id = 0, name = name, from = from, to = to, rank = 0)
+    override suspend fun insertMealWithLastRank(
+        name: String,
+        from: LocalTime,
+        to: LocalTime,
+        icon: String?,
+    ) {
+        val meal = Meal(id = 0, name = name, from = from, to = to, rank = 0, icon = icon)
         mealDao.insertWithLastRank(meal.toEntity())
     }
 
-    override suspend fun updateMeal(id: Long, name: String, from: LocalTime, to: LocalTime) {
+    override suspend fun updateMeal(
+        id: Long,
+        name: String,
+        from: LocalTime,
+        to: LocalTime,
+        icon: String?,
+    ) {
         mealDao.updateMealIgnoreRank(
             id = id,
             name = name,
@@ -28,6 +39,7 @@ internal class RoomMealRepository(private val mealDao: MealDao) : MealRepository
             fromMinute = from.minute,
             toHour = to.hour,
             toMinute = to.minute,
+            icon = icon,
         )
     }
 
@@ -45,7 +57,7 @@ private fun MealEntity.toModel(): Meal {
     val from = LocalTime(fromHour, fromMinute)
     val to = LocalTime(toHour, toMinute)
 
-    return Meal(id = id, name = name, from = from, to = to, rank = rank)
+    return Meal(id = id, name = name, from = from, to = to, rank = rank, icon = icon)
 }
 
 private fun Meal.toEntity(): MealEntity =
@@ -57,4 +69,5 @@ private fun Meal.toEntity(): MealEntity =
         toHour = to.hour,
         toMinute = to.minute,
         rank = rank,
+        icon = icon,
     )

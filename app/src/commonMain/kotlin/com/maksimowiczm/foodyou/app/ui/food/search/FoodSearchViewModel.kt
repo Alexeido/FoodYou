@@ -39,6 +39,7 @@ internal class FoodSearchViewModel(
     searchHistoryRepository: FoodSearchHistoryRepository,
     private val foodSearchRepository: FoodSearchRepository,
     private val productRepository: com.maksimowiczm.foodyou.food.domain.repository.ProductRepository,
+    private val recipeRepository: com.maksimowiczm.foodyou.food.domain.repository.RecipeRepository,
     private val foodSearchUseCase: FoodSearchUseCase,
     private val dateProvider: DateProvider,
 ) : ViewModel() {
@@ -180,6 +181,17 @@ internal class FoodSearchViewModel(
             )
         }
 
+    private val customPages =
+        observeFoodPages(FoodSource.Type.Custom, debounced = true).cachedIn(viewModelScope)
+    private val customState =
+        combine(observeFoodCount(FoodSource.Type.Custom), foodPreferences) { count, prefs ->
+            FoodSourceUiState(
+                remoteEnabled = prefs.isCustomEnabled.toRemoteStatus(),
+                pages = customPages,
+                count = count,
+            )
+        }
+
     private fun observeFoodCount(source: FoodSource.Type) =
         combine(searchQuery, filter) { query, currentFilter -> Pair(query, currentFilter) }
             .flatMapLatest { (query, currentFilter) ->
@@ -233,6 +245,7 @@ internal class FoodSearchViewModel(
                 openFoodFactsState,
                 usdaState,
                 swissState,
+                customState,
                 filter,
                 searchHistory,
             ) {
@@ -241,6 +254,7 @@ internal class FoodSearchViewModel(
                 openFoodFactsState,
                 usdaState,
                 swissState,
+                customState,
                 filter,
                 searchHistory ->
                 FoodSearchUiState(
@@ -251,6 +265,7 @@ internal class FoodSearchViewModel(
                             FoodFilter.Source.OpenFoodFacts to openFoodFactsState,
                             FoodFilter.Source.USDA to usdaState,
                             FoodFilter.Source.SwissFoodCompositionDatabase to swissState,
+                            FoodFilter.Source.Custom to customState,
                         ),
                     filter = filter,
                     recentSearches = searchHistory.map { it.query },
@@ -266,7 +281,13 @@ internal class FoodSearchViewModel(
         }
 
     val uiState =
-        combine(baseUiState, favoritesCountFlow) { base, favCount -> base.copy(favoritesCount = favCount) }
+        combine(baseUiState, favoritesCountFlow, foodPreferences) { base, favCount, prefs ->
+                base.copy(
+                    favoritesCount = favCount,
+                    enabledRemoteSources = prefs.enabledRemoteSources,
+                    primarySource = prefs.effectivePrimarySource,
+                )
+            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(2_000),
@@ -288,96 +309,17 @@ internal class FoodSearchViewModel(
                     ),
             )
 
-    init {
-        // React to filter changes (e.g., toggling favorites while in Recent)
+    // Note: automatic source-switching on search was removed intentionally. With the tabbed UI the
+    // user explicitly controls the active tab; typing filters the current tab and pressing search
+    // jumps to the database tab (handled in the UI).
+
+    fun toggleFavorite(foodId: FoodId, newState: Boolean) {
         viewModelScope.launch {
-            filter.collect { currentFilter ->
-                val ui = uiState.value
-
-                if ((currentFilter.source != FoodFilter.Source.Recent &&
-                        currentFilter.source != FoodFilter.Source.YourFood) ||
-                    ui.currentSourceCount.positive()
-                ) {
-                    return@collect
-                }
-
-                val recentCount = ui.sources[FoodFilter.Source.Recent]?.count
-                if (recentCount.positive()) {
-                    changeSource(FoodFilter.Source.Recent)
-                    return@collect
-                }
-
-                val yourFoodCount = ui.sources[FoodFilter.Source.YourFood]?.count
-                if (yourFoodCount.positive()) {
-                    changeSource(FoodFilter.Source.YourFood)
-                    return@collect
-                }
-
-                val openFoodFactsCount = ui.sources[FoodFilter.Source.OpenFoodFacts]?.count
-                if (openFoodFactsCount.positive()) {
-                    changeSource(FoodFilter.Source.OpenFoodFacts)
-                    return@collect
-                }
-
-                val usdaCount = ui.sources[FoodFilter.Source.USDA]?.count
-                if (usdaCount.positive()) {
-                    changeSource(FoodFilter.Source.USDA)
-                    return@collect
-                }
+            when (foodId) {
+                is FoodId.Product -> productRepository.updateFavorite(foodId, newState)
+                is FoodId.Recipe -> recipeRepository.updateFavorite(foodId, newState)
             }
         }
-
-        searchQuery
-            .flatMapLatest { query ->
-                if (query == null) {
-                    return@flatMapLatest emptyFlow()
-                }
-
-                val switchFlow =
-                    combine(filter, uiState) { currentFilter, uiState ->
-                        if (
-                            (currentFilter.source != FoodFilter.Source.Recent &&
-                                currentFilter.source != FoodFilter.Source.YourFood) ||
-                                uiState.currentSourceCount.positive()
-                        ) {
-                            return@combine
-                        }
-
-                        val recentCount = uiState.sources[FoodFilter.Source.Recent]?.count
-                        if (recentCount.positive()) {
-                            changeSource(FoodFilter.Source.Recent)
-                            return@combine
-                        }
-
-                        val yourFoodCount = uiState.sources[FoodFilter.Source.YourFood]?.count
-                        if (yourFoodCount.positive()) {
-                            changeSource(FoodFilter.Source.YourFood)
-                            return@combine
-                        }
-
-                        val openFoodFactsCount =
-                            uiState.sources[FoodFilter.Source.OpenFoodFacts]?.count
-                        if (openFoodFactsCount.positive()) {
-                            changeSource(FoodFilter.Source.OpenFoodFacts)
-                            return@combine
-                        }
-
-                        val usdaCount = uiState.sources[FoodFilter.Source.USDA]?.count
-                        if (usdaCount.positive()) {
-                            changeSource(FoodFilter.Source.USDA)
-                            return@combine
-                        }
-                    }
-
-                val now = Clock.System.now().toEpochMilliseconds()
-                val deadline = now + 100L
-                switchFlow.takeWhile { Clock.System.now().toEpochMilliseconds() < deadline }
-            }
-            .launchIn(viewModelScope)
-    }
-
-    fun toggleFavorite(productId: FoodId.Product, newState: Boolean) {
-        viewModelScope.launch { productRepository.updateFavorite(productId, newState) }
     }
 }
 

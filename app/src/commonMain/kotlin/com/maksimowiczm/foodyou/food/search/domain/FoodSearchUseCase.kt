@@ -21,6 +21,7 @@ class FoodSearchUseCase(
     private val foodSearchPreferencesRepository: UserPreferencesRepository<FoodSearchPreferences>,
     private val foodRemoteMediatorFactoryAggregate: FoodRemoteMediatorFactoryAggregate,
     private val openFoodFactsNetworkPagingSourceFactory: OpenFoodFactsNetworkPagingSourceFactory,
+    private val customFoodSourceNetworkPagingSourceFactory: CustomFoodSourceNetworkPagingSourceFactory,
     private val eventBus: EventBus,
     private val dateProvider: DateProvider,
 ) {
@@ -57,6 +58,25 @@ class FoodSearchUseCase(
                             excludedRecipeId = excludedRecipeId,
                         )
                 }
+            } else if (
+                source == FoodSource.Type.Custom &&
+                    prefs.custom.enabled &&
+                    query is SearchQuery.Text
+            ) {
+                // Text search on the user's own server streams live, in the server's own order.
+                // Barcode lookups stay on the local-first path so cached products show instantly.
+                Pager(
+                        // initialLoadSize defaults to pageSize * 3, which would ask the server for
+                        // 72 results before showing anything. The server pays a full upstream round
+                        // trip proportional to that size (~0.6 s for 24, ~1 s for 72), so the first
+                        // page asks only for what is displayed and the rest is prefetched remotely.
+                        config =
+                            PagingConfig(pageSize = PAGE_SIZE, initialLoadSize = PAGE_SIZE),
+                        pagingSourceFactory = {
+                            customFoodSourceNetworkPagingSourceFactory.create(query.query)
+                        },
+                    )
+                    .flow
             } else {
                 foodSearchRepository.search(
                     query = query,
@@ -116,6 +136,9 @@ class FoodSearchUseCase(
 
             FoodSource.Type.USDA if this.usda.enabled ->
                 foodRemoteMediatorFactoryAggregate.usdaRemoteMediatorFactory
+
+            FoodSource.Type.Custom if this.custom.enabled ->
+                foodRemoteMediatorFactoryAggregate.customRemoteMediatorFactory
             else -> null
         }
 

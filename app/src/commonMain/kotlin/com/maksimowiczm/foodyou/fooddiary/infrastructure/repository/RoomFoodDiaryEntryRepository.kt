@@ -18,6 +18,7 @@ import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipe
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipeIngredient
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.RecentMealRef
 import com.maksimowiczm.foodyou.fooddiary.domain.repository.FoodDiaryEntryRepository
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryProductEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryRecipeEntity
@@ -63,6 +64,7 @@ internal class RoomFoodDiaryEntryRepository(
                     createdAt = createdAt,
                     updatedAt = updatedAt,
                     position = entity.position,
+                    createdByAssistant = entity.createdByAssistant,
                 )
             }
         }
@@ -96,6 +98,7 @@ internal class RoomFoodDiaryEntryRepository(
                                 createdAt = createdAt,
                                 updatedAt = updatedAt,
                                 position = entity.position,
+                                createdByAssistant = entity.createdByAssistant,
                             )
                         }
                     }
@@ -103,12 +106,32 @@ internal class RoomFoodDiaryEntryRepository(
             }
     }
 
+    override fun observeRange(from: LocalDate, to: LocalDate): Flow<List<FoodDiaryEntry>> {
+        return dao.observeMeasurementsBetween(
+                from = from.toEpochDays(),
+                to = to.toEpochDays(),
+            )
+            .flatMapLatest { entities ->
+                if (entities.isEmpty()) {
+                    return@flatMapLatest flowOf(emptyList())
+                }
+
+                entities.map { entity -> observeFood(entity).map { entity.toEntry(it) } }.combine()
+            }
+    }
+
+    override fun observeRecentMealRefs(limit: Int): Flow<List<RecentMealRef>> =
+        dao.observeRecentMealGroups(limit).map { groups ->
+            groups.map { RecentMealRef(mealId = it.mealId, date = LocalDate.fromEpochDays(it.epochDay)) }
+        }
+
     override suspend fun insert(
         measurement: Measurement,
         mealId: Long,
         date: LocalDate,
         food: DiaryFood,
         createdAt: LocalDateTime,
+        createdByAssistant: Boolean,
     ): FoodDiaryEntryId =
         database.immediateTransaction {
             val recipeId = run {
@@ -146,6 +169,7 @@ internal class RoomFoodDiaryEntryRepository(
                     createdAt = createdAtSeconds,
                     updatedAt = createdAtSeconds,
                     position = position,
+                    createdByAssistant = createdByAssistant,
                 )
 
             dao.insertMeasurement(entity).toFoodDiaryEntryId()
@@ -219,6 +243,23 @@ internal class RoomFoodDiaryEntryRepository(
             dao.updatePositionAndMeal(id.value, targetMealId, newPosition, now)
         }
 
+    /** Shared mapping so the per-meal and per-range queries can never drift apart. */
+    private fun MeasurementEntity.toEntry(food: DiaryFood): FoodDiaryEntry {
+        val zone = TimeZone.currentSystemDefault()
+        return FoodDiaryEntry(
+            id = id.toFoodDiaryEntryId(),
+            mealId = mealId,
+            date = LocalDate.fromEpochDays(epochDay),
+            measurement = Measurement.from(measurement, quantity),
+            food = food,
+            isEaten = isEaten,
+            createdAt = Instant.fromEpochSeconds(createdAt).toLocalDateTime(zone),
+            updatedAt = Instant.fromEpochSeconds(updatedAt).toLocalDateTime(zone),
+            position = position,
+            createdByAssistant = createdByAssistant,
+        )
+    }
+
     private fun observeFood(measurementEntity: MeasurementEntity): Flow<DiaryFood> =
         measurementEntity.productId?.let { productId -> observeProduct(productId) }
             ?: measurementEntity.recipeId?.let { recipeId -> observeRecipe(recipeId) }
@@ -272,6 +313,7 @@ internal class RoomFoodDiaryEntryRepository(
                         ingredients = ingredients,
                         isLiquid = entity.isLiquid,
                         note = entity.note,
+                        category = entity.category,
                     )
                 }
             }
@@ -290,6 +332,7 @@ internal class RoomFoodDiaryEntryRepository(
                 servings = diaryRecipe.servings,
                 isLiquid = diaryRecipe.isLiquid,
                 note = diaryRecipe.note,
+                category = diaryRecipe.category,
             )
 
         val recipeId = dao.insertDiaryRecipe(recipe)

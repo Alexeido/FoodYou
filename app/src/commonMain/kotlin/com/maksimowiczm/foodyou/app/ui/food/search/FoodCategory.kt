@@ -2,6 +2,9 @@ package com.maksimowiczm.foodyou.app.ui.food.search
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFood
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodProduct
+import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipe
 
 /**
  * IMPORTANTE: Ahora usamos coincidencia EXACTA de los tags de Open Food Facts.
@@ -219,6 +222,25 @@ fun getFoodCategoryFromTags(tags: List<String>?): FoodCategory {
 
     return FoodCategory.UNKNOWN
 }
+
+/**
+ * The icon a diary food gets: a product's own Open Food Facts tags first, a recipe's stored
+ * category, then a guess from the name. A recipe nobody categorised is still a dish, so it falls back
+ * to prepared meals instead of the grey question mark.
+ */
+fun DiaryFood.diaryCategory(): FoodCategory =
+    when (this) {
+        is DiaryFoodProduct ->
+            getFoodCategoryFromTags(categories).takeIf { it != FoodCategory.UNKNOWN }
+                ?: getFoodCategory(name)
+        is DiaryFoodRecipe -> recipeCategory(category, name)
+    }
+
+/** A recipe's icon: its stored category, a guess from the name, and otherwise a prepared dish. */
+fun recipeCategory(category: String?, name: String): FoodCategory =
+    category?.let { stored -> FoodCategory.entries.firstOrNull { it.name == stored } }
+        ?: getFoodCategory(name).takeIf { it != FoodCategory.UNKNOWN }
+        ?: FoodCategory.PLATOS_PREPARADOS
 
 private fun removeAccents(s: String): String {
     return s

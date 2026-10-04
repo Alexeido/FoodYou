@@ -7,6 +7,12 @@ import androidx.room.TypeConverters
 import androidx.room.immediateTransaction
 import androidx.room.migration.Migration
 import androidx.room.useWriterConnection
+import com.maksimowiczm.foodyou.sync.infrastructure.SyncSchemaCallback
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantChangeEntity
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantConversationEntity
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDatabase
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantDao
+import com.maksimowiczm.foodyou.assistant.infrastructure.room.AssistantMemoryEntity
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.FoodSearchFtsCyrillicMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.FoodSearchFtsMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.LegacyMigrations
@@ -14,10 +20,16 @@ import com.maksimowiczm.foodyou.app.infrastructure.room.migration.deleteUsedFood
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.fixMeasurementSuggestions
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.foodYou3Migration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.unlinkDiaryMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addAssistantConversationsMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addComposedManualEntriesMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addRecipeFavoriteMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addRecipeCategoryMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addManualEntryCategoryMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addDiaryProductCategoriesMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addEntryPositionMigration
 import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductFavoriteMigration
+import com.maksimowiczm.foodyou.app.infrastructure.room.migration.addProductIdentityAndMealIconMigration
 import com.maksimowiczm.foodyou.common.domain.database.TransactionProvider
 import com.maksimowiczm.foodyou.common.domain.database.TransactionScope as DomainTransactionScope
 import com.maksimowiczm.foodyou.common.infrastructure.room.FoodSourceTypeConverter
@@ -33,6 +45,7 @@ import com.maksimowiczm.foodyou.food.infrastructure.room.ProductFts
 import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeEntity
 import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeFts
 import com.maksimowiczm.foodyou.food.infrastructure.room.RecipeIngredientEntity
+import com.maksimowiczm.foodyou.food.search.infrastructure.room.CustomFoodSourcePagingKeyEntity
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.FoodSearchDatabase
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.OpenFoodFactsPagingKeyEntity
 import com.maksimowiczm.foodyou.food.search.infrastructure.room.RecipeAllIngredientsView
@@ -44,6 +57,7 @@ import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.DiaryRecipeIngredi
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.FoodDiaryDatabase
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.InitializeMealsCallback
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.ManualDiaryEntryEntity
+import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.ManualDiaryEntryIngredientEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.MealEntity
 import com.maksimowiczm.foodyou.fooddiary.infrastructure.room.MeasurementEntity
 import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipDatabase
@@ -57,6 +71,7 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             RecipeIngredientEntity::class,
             OpenFoodFactsPagingKeyEntity::class,
             USDAPagingKeyEntity::class,
+            CustomFoodSourcePagingKeyEntity::class,
             FoodEventEntity::class,
             SearchEntry::class,
             MealEntity::class,
@@ -67,6 +82,10 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             SponsorshipEntity::class,
             MeasurementSuggestionEntity::class,
             ManualDiaryEntryEntity::class,
+            ManualDiaryEntryIngredientEntity::class,
+            AssistantChangeEntity::class,
+            AssistantMemoryEntity::class,
+            AssistantConversationEntity::class,
             ProductFts::class,
             RecipeFts::class,
         ],
@@ -102,6 +121,7 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
              * @see [LegacyMigrations.MIGRATION_18_19] Merge product and recipe measurements into
              *   MeasurementEntity
              */
+            AutoMigration(from = 38, to = 39),
             AutoMigration(from = 19, to = 20),
             /**
              * @see [LegacyMigrations.MIGRATION_20_21] Add isLiquid column to ProductEntity and
@@ -119,6 +139,11 @@ import com.maksimowiczm.foodyou.sponsorship.infrastructure.room.SponsorshipEntit
             /**
              * @see [FoodSearchFtsCyrillicMigration] Add Cyrillic tokenizer support to FTS tables
              */
+            AutoMigration(from = 36, to = 37), // Add CustomFoodSourcePagingKeyEntity
+            /**
+             * @see [addProductIdentityAndMealIconMigration] Add sourceBarcode/isEdited/lastUsedAt to
+             *   Product and icon to Meal
+             */
         ],
 )
 @TypeConverters(
@@ -131,6 +156,7 @@ abstract class FoodYouDatabase :
     TransactionProvider,
     FoodDatabase,
     FoodSearchDatabase,
+    AssistantDatabase,
     FoodDiaryDatabase,
     SponsorshipDatabase {
 
@@ -143,7 +169,7 @@ abstract class FoodYouDatabase :
         }
 
     companion object {
-        const val VERSION = 36
+        const val VERSION = 44
 
         private val migrations: List<Migration> =
             listOf(
@@ -165,6 +191,12 @@ abstract class FoodYouDatabase :
                 addProductFavoriteMigration,
                 addDiaryProductCategoriesMigration,
                 addEntryPositionMigration,
+                addProductIdentityAndMealIconMigration,
+                addManualEntryCategoryMigration,
+                addAssistantConversationsMigration,
+                addComposedManualEntriesMigration,
+                addRecipeFavoriteMigration,
+                addRecipeCategoryMigration,
             )
 
         fun Builder<FoodYouDatabase>.buildDatabase(
@@ -172,6 +204,8 @@ abstract class FoodYouDatabase :
         ): FoodYouDatabase {
             addMigrations(*migrations.toTypedArray())
             addCallback(mealsCallback)
+            // Las tablas y disparadores de la sincronización, fuera de las entidades de Room.
+            addCallback(SyncSchemaCallback())
             return build()
         }
     }

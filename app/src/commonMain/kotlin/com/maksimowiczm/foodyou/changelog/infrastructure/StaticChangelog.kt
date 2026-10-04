@@ -12,6 +12,10 @@ internal class StaticChangelog(private val appConfig: AppConfig) : Changelog {
     override val versions: List<Version>
         get() =
             listOf(
+                v_4_2_1,
+                v_4_2_0,
+                v_4_1_0,
+                v_4_0_0,
                 v_3_9_1,
                 v_3_9_A,
                 v_3_4_3,
@@ -50,6 +54,93 @@ internal class StaticChangelog(private val appConfig: AppConfig) : Changelog {
                 v2_1_0,
                 v2_0_0,
             )
+
+    val v_4_2_1 =
+        Version(
+            version = "4.2.1",
+            date = LocalDate(2026, 10, 3),
+            changes =
+                listOf(
+                    "The goals card animates in every style: ticking food as eaten makes the " +
+                        "calories and macros count up or down, rings, arcs and bars slide to the " +
+                        "new value, and going over a goal fades to red."
+                ),
+        )
+
+    val v_4_2_0 =
+        Version(
+            version = "4.2.0",
+            date = LocalDate(2026, 10, 3),
+            newFeatures =
+                listOf(
+                    "Your recipes are now synced across your devices, ingredients included.",
+                    "What the assistant remembers about you is synced too, so every device knows it.",
+                ),
+            bugFixes =
+                listOf(
+                    "Editing meals (name, icon, order) crashed with sync turned on, and the change " +
+                        "was not saved."
+                ),
+        )
+
+    val v_4_1_0 =
+        Version(
+            version = "4.1.0",
+            date = LocalDate(2026, 10, 3),
+            newFeatures =
+                listOf(
+                    "Pick the nutrients you want to reach - calcium, iron, vitamin D, fiber... - and " +
+                        "they show under the macros in the goals card details. Long-press the card " +
+                        "to choose them.",
+                    "The assistant knows which nutrients you want to reach and reports how you're " +
+                        "doing on them.",
+                    "Your goals are now synced across your devices too.",
+                ),
+        )
+
+    val v_4_0_0 =
+        Version(
+            version = "4.0.0",
+            date = LocalDate(2026, 10, 3),
+            notes =
+                "Food You 4.0 is a big step: an assistant that logs food for you, dishes made of " +
+                    "real ingredients, your diary synced across devices and on your watch, and " +
+                    "updates from inside the app.",
+            newFeatures =
+                listOf(
+                    "AI assistant: tell it or show it a photo of what you ate and it logs it. " +
+                        "Works with your own API key, can plan days, and every change it makes " +
+                        "can be undone.",
+                    "Conversation history for the assistant; it picks up the last chat when you open it.",
+                    "Composed dishes are now real recipes: each ingredient is a food with its own " +
+                        "grams, and you can change one ingredient for a single day without editing the recipe.",
+                    "Favourite recipes.",
+                    "Custom food databases with username and password.",
+                    "Recently logged meals, one tap away when adding food.",
+                    "Updates from inside the app: a notice when a new version is out, downloaded " +
+                        "and installed without leaving Food You. Also under Settings → Check for updates.",
+                    "Diary sync with your own server: every phone stays up to date within seconds, " +
+                        "and works offline until the connection is back. Settings → Sync.",
+                    "Wear OS companion: see today's meals and tick off what you've eaten from the " +
+                        "watch. Pair it with a 6-digit code from Settings → Sync.",
+                    "Use your diary from Claude (and other assistants) through the sync server's MCP.",
+                ),
+            changes =
+                listOf(
+                    "Redesigned food search and diary rows: category icons, brand on its own line " +
+                        "and every figure on one line.",
+                    "Recipe entries show a recipe badge, and entries added by the assistant a robot.",
+                    "Editing an ingredient uses the full amount picker: any unit the food supports " +
+                        "and the macro boxes.",
+                    "Accent-insensitive recipe search.",
+                    "The version shown in Android settings now includes the build number.",
+                ),
+            bugFixes =
+                listOf(
+                    "Food search no longer crashes when the app is not in Spanish.",
+                    "Foods with missing nutrition values are no longer picked silently by the assistant.",
+                ),
+        )
 
     val v_3_9_1 =
         Version(

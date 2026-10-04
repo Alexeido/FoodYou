@@ -237,6 +237,8 @@
     <string name="description_download_product">Paste a link to a food product, and automatically fetch nutrition facts and product details.</string>
     <string name="description_download_product_hint">You can paste any text. First URL will be used.</string>
     <string name="description_show_macronutrients_goals">Show macronutrients goals</string>
+    <string name="headline_tracked_nutrients">Nutrients you want to reach</string>
+    <string name="description_tracked_nutrients">Shown under the macros in the card details. The assistant treats them as goals you want to meet. Change each target in the daily goals settings.</string>
     <string name="description_please_wait_while_importing_products">Please wait while importing products</string>
     <string name="description_please_wait_while_exporting_products">Please wait while exporting products</string>
 
@@ -273,6 +275,15 @@
 
     <string name="headline_external_databases">External databases</string>
     <string name="description_external_databases">Check out supported databases</string>
+
+    <string name="headline_custom_food_source">Custom database</string>
+    <string name="description_custom_food_source">Connect to your own self-hosted food database server</string>
+    <string name="headline_server_url">Server URL</string>
+    <string name="headline_username">Username</string>
+    <string name="headline_password">Password</string>
+    <string name="action_configure">Configure</string>
+    <string name="error_invalid_url">Please enter a valid URL</string>
+    <string name="error_field_required">This field is required</string>
 
     <string name="feature_manual_database_import">Manual database import</string>
 
@@ -518,4 +529,164 @@
     <string name="headline_experimental">Experimental</string>
 
     <string name="description_privacy_policy">See how your data is handled</string>
+
+    <!-- Search redesign + product identity/freshness + comidas recientes -->
+    <string name="action_refresh_from_source">Refresh from source</string>
+    <string name="neutral_product_refreshed">Product refreshed from source</string>
+    <string name="neutral_product_refresh_no_source">This product has no source to refresh from</string>
+    <string name="neutral_product_refresh_not_found">Not found on the source anymore</string>
+    <string name="error_product_refresh_unauthorized">The source rejected the credentials</string>
+    <string name="error_product_refresh_failed">Couldn't refresh. Check your connection.</string>
+    <string name="headline_source_barcode">Source barcode</string>
+    <string name="description_source_barcode">Identity on the server. Used to recognize this product and to refresh it. Not editable.</string>
+    <string name="headline_your_food_short" description="Short tab label for the user's own foods">Yours</string>
+    <string name="neutral_type_to_search_database">Type to search your database</string>
+    <string name="description_type_to_search_database">Your server is queried live as you type or scan — no piles of old results.</string>
+    <string name="headline_primary_source">Primary source</string>
+    <string name="action_add_meal_block" description="Add a whole past meal at once">Add</string>
+    <string name="neutral_added" description="A past meal was added">Added</string>
+    <string name="headline_recent_meals">Recent meals</string>
+    <string name="headline_recent_foods">Recent foods</string>
+    <string name="neutral_no_created_foods">You haven't created any foods yet. Tap + to add one.</string>
+    <string name="neutral_no_favorites">No favorites yet. Tap the heart on a food to save it.</string>
+    <string name="neutral_nothing_added_here">Nothing added from here yet. Search to add something.</string>
+    <string name="action_see_all">See all</string>
+    <string name="description_values_for" description="Tells which amount the shown nutrition values refer to, e.g. 'Values for 240 g'">Values for %1$s</string>
+    <string name="headline_choose_icon">Choose an icon</string>
+    <string name="headline_icons_material">Icons</string>
+    <string name="headline_icons_emoji">Emoji</string>
+    <string name="action_choose_icon">Choose icon</string>
+    <string name="headline_goals_card_style">Card style</string>
+    <string name="description_goals_card_style">How the daily goal card shows your macros</string>
+    <string name="goals_style_bars">Thick bars</string>
+    <string name="goals_style_columns">Columns</string>
+    <string name="goals_style_ring">Ring</string>
+    <string name="goals_style_arc">Arc</string>
+    <string name="goals_style_stacked">Stacked</string>
+    <string name="goals_style_numbers">Figures only</string>
+    <string name="goals_style_horizontal_bars">Horizontal bars</string>
+    <string name="headline_figure_value">Centre of the figure</string>
+    <string name="description_figure_value">What the ring or arc shows in the middle</string>
+    <string name="figure_value_percentage">Percentage</string>
+    <string name="figure_value_energy">Calories</string>
+    <string name="headline_assistant">Assistant</string>
+    <string name="description_assistant_settings">Connect a language model to ask about your diary and log food by talking. You provide the API key, so you pay only for what you use.</string>
+    <string name="headline_assistant_base_url">Server</string>
+    <string name="description_assistant_base_url">Any OpenAI-compatible endpoint: DeepSeek, OpenRouter, Groq or a local server.</string>
+    <string name="headline_assistant_api_key">API key</string>
+    <string name="description_assistant_api_key">Stored encrypted on this device. It never leaves it except to reach the server above.</string>
+    <string name="action_test_connection">Test connection</string>
+    <string name="action_clear_api_key">Remove key</string>
+    <string name="action_show">Show</string>
+    <string name="action_hide">Hide</string>
+    <string name="description_assistant_connected">Connected. %1$d models available.</string>
+    <string name="error_assistant_unauthorized">The server rejected the key. It may be wrong, expired or out of credit.</string>
+    <string name="error_assistant_rate_limited">Too many requests. Wait a moment and try again.</string>
+    <string name="error_assistant_network">Could not reach the server. Check the address and your connection.</string>
+    <string name="error_assistant_server">The server answered with an error. %1$s</string>
+    <string name="error_assistant_not_configured">Enter a key first.</string>
+    <string name="headline_assistant_model">Model</string>
+    <string name="description_assistant_model">Used for everything except images. It must support tool calling.</string>
+    <string name="headline_assistant_supports_vision">This model can see photos</string>
+    <string name="description_assistant_supports_vision">Turn this on only if the model above supports images. Off, and the camera disappears from the chat instead of failing when tapped.</string>
+    <string name="headline_assistant_max_iterations">Steps per answer</string>
+    <string name="description_assistant_max_iterations">How many times the assistant may use its tools before answering. Higher plans better, lower costs less. No limit removes the cap entirely.</string>
+    <string name="description_assistant_settings_entry">Chat, log food by talking and plan your week</string>
+    <string name="action_new_conversation">New conversation</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_send">Send</string>
+    <string name="action_dictate">Dictate</string>
+    <string name="action_attach_photo">Attach a photo</string>
+    <string name="description_added_by_assistant">Added by the assistant</string>
+    <string name="action_take_photo">Take a photo</string>
+    <string name="action_choose_from_gallery">Choose from gallery</string>
+    <string name="headline_assistant_empty">Tell me what you have eaten</string>
+    <string name="description_assistant_empty">Or ask about your last few weeks. I can add, change and remove food from the diary, and you can always undo it.</string>
+    <string name="description_assistant_placeholder">Write what you have eaten...</string>
+    <string name="description_assistant_undone">Undone</string>
+    <string name="description_assistant_diary_untouched">Your diary has not been touched.</string>
+    <string name="error_assistant_generic">Something went wrong reaching the model.</string>
+    <string name="error_assistant_timeout">The model took too long to answer.</string>
+    <string name="description_assistant_photo_attached">Photo attached</string>
+    <string name="action_remove">Remove</string>
+    <string name="description_assistant_suggestion_fill_day">Fill in the rest of my day</string>
+    <string name="description_assistant_suggestion_week">How did I eat this week</string>
+    <string name="description_assistant_suggestion_fat">Where is all this fat coming from</string>
+    <string name="headline_favorites">Favorites</string>
+    <string name="action_assistant_unlimited_iterations">No limit</string>
+    <string name="description_composed_food">Composed food</string>
+    <plurals name="description_ingredient_count">
+        <item quantity="one">%1$d ingredient</item>
+        <item quantity="other">%1$d ingredients</item>
+    </plurals>
+    <string name="description_composed_food_explainer">The macros above are for the whole dish. These are what it was made of.</string>
+    <string name="action_assistant_change_history">Change history</string>
+    <string name="action_assistant_conversations">Conversations</string>
+    <string name="headline_assistant_change_history">Change history</string>
+    <string name="description_assistant_change_history_empty">The assistant has not changed your diary in this conversation yet.</string>
+    <string name="headline_assistant_revert_confirm">Revert to this point?</string>
+    <string name="description_assistant_revert_confirm">This and everything the assistant did afterwards in this conversation will be undone.</string>
+    <string name="action_assistant_revert">Revert</string>
+    <string name="headline_assistant_conversations">Conversations</string>
+    <string name="description_assistant_conversations_empty">No saved conversations yet. Send a message to start one.</string>
+    <string name="description_assistant_delete_conversation_confirm">This conversation and its message history will be deleted. This cannot be undone.</string>
+    <string name="action_change_ingredient_amount">Change amount</string>
+    <string name="description_change_ingredient_amount">Only for this entry. The rest of the dish keeps its amounts, so the portion changes with it.</string>
+    <!-- Actualizador -->
+    <string name="headline_new_version">New version!</string>
+    <string name="description_new_version_build">Version %1$s</string>
+    <string name="description_update_size">%1$s MB download</string>
+    <string name="action_update">Update</string>
+    <string name="action_later">Later</string>
+    <string name="action_install">Install</string>
+    <string name="description_downloading_update">Downloading the update…</string>
+    <string name="headline_allow_install">Allow the update</string>
+    <string name="description_allow_install">Android needs your permission for Food You to install its updates. Turn on “Allow from this source”, come back and tap Install.</string>
+    <string name="action_open_permission">Open the setting</string>
+    <string name="headline_installing_update">Almost there</string>
+    <string name="description_installing_update">Follow the Android installer. If you closed it, you can open it again without downloading anything.</string>
+    <string name="headline_up_to_date">You are up to date</string>
+    <string name="description_up_to_date">Version %1$s is the newest one.</string>
+    <string name="headline_update_failed">Could not update</string>
+    <string name="description_update_check_failed">The update server could not be reached. Check your connection and try again.</string>
+    <string name="description_update_download_failed">The download did not finish. Try again.</string>
+    <string name="headline_check_updates">Check for updates</string>
+    <string name="description_installed_version">Installed version: %1$s</string>
+    <string name="description_development_build">Development build</string>
+    <string name="description_checking_updates">Checking…</string>
+    <!-- Sincronización -->
+    <string name="headline_sync">Sync</string>
+    <string name="description_sync_setting">Your diary, the same on all your devices</string>
+    <string name="description_sync_intro">Keeps your diary on a server you choose, and the same on all your devices. Every change is saved on this phone first and sent in the background, so nothing waits for the network. It is separate from the food databases.</string>
+    <string name="description_sync_first_time">The first time, this phone's diary is joined with the account's: nothing is lost, and meals with the same name become one.</string>
+    <string name="headline_sync_server">Server</string>
+    <string name="label_sync_url">Server address</string>
+    <string name="label_sync_username">Username</string>
+    <string name="label_sync_password">Password</string>
+    <string name="action_enable_sync">Turn on sync</string>
+    <string name="action_sync_now">Sync now</string>
+    <string name="action_forget_sync_account">Forget this account</string>
+    <string name="description_sync_connected">Connected as %1$s · %2$s documents</string>
+    <string name="description_sync_testing">Connecting…</string>
+    <string name="description_sync_error_network">Could not reach the server.</string>
+    <string name="description_sync_error_unauthorized">Wrong username or password.</string>
+    <string name="description_sync_error_forbidden">This account is disabled.</string>
+    <string name="description_sync_error_server">The server answered with an error.</string>
+    <string name="headline_sync_status">Status</string>
+    <string name="label_sync_enabled">Sync on</string>
+    <string name="description_sync_last">Last sync: %1$s</string>
+    <string name="description_sync_never">Not synced yet</string>
+    <string name="description_sync_running">Syncing…</string>
+    <string name="description_sync_pending">Changes waiting to be sent: %1$s</string>
+    <string name="description_sync_off">Off</string>
+    <string name="time_just_now">just now</string>
+    <string name="time_minutes_ago">%1$s min ago</string>
+    <string name="time_hours_ago">%1$s h ago</string>
+    <string name="time_days_ago">%1$s days ago</string>
+    <string name="headline_disable_sync">Turn off sync?</string>
+    <string name="description_disable_sync">Your diary stays on this phone as it is. If you turn sync on again, the account wins for everything it already has.</string>
+    <string name="action_turn_off">Turn off</string>
+    <string name="action_pair_watch">Pair a watch</string>
+    <string name="headline_pair_watch">Pair a watch</string>
+    <string name="description_pair_watch">On the watch, open Food You and enter this code. It works once and expires in %1$s minutes.</string>
 </resources>

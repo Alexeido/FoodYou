@@ -1,0 +1,345 @@
+openapi: 3.0.3
+info:
+  title: Food You - Custom Food Source API
+  description: >
+    Contract that a self-hosted, custom food database server must implement to be usable
+    as a "Custom database" source in Food You. This is a PLACEHOLDER contract assumed by
+    the app's client (see `food/infrastructure/customsource/` in the app repo) — it can be
+    changed later; only the app's DTOs and parsing code would need to follow suit.
+  version: "0.1.0"
+
+servers:
+  - url: https://your-server.example.com
+    description: Base URL configured by the user in the app's settings (e.g. a Cloudflare Tunnel URL)
+
+security:
+  - basicAuth: []
+
+paths:
+  /api/v2/product/{barcode}:
+    get:
+      summary: Get a single product by barcode
+      operationId: getProductByBarcode
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product barcode (e.g. EAN-13, UPC-A)
+      responses:
+        "200":
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          description: Missing or invalid credentials
+        "403":
+          description: Credentials rejected
+        "404":
+          description: No product found for this barcode
+
+  /search:
+    get:
+      summary: Search products by free text query
+      operationId: searchProducts
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Free text search query
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: 1-indexed page number. Omitted on the first request.
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Requested number of results per page (the app currently requests 24).
+      responses:
+        "200":
+          description: Paged search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "401":
+          description: Missing or invalid credentials
+        "403":
+          description: Credentials rejected
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: >
+        Username and password are entered by the user in the app's settings and sent on
+        every request as `Authorization: Basic base64(username:password)`.
+
+  schemas:
+    Product:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Product display name. The only required field.
+        brand:
+          type: string
+          nullable: true
+        barcode:
+          type: string
+          nullable: true
+        packageWeight:
+          type: number
+          format: double
+          nullable: true
+          description: Total package weight in grams, if applicable.
+        servingWeight:
+          type: number
+          format: double
+          nullable: true
+          description: Single serving weight in grams, if applicable.
+        isLiquid:
+          type: boolean
+          default: false
+        categories:
+          type: array
+          items:
+            type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+          description: >
+            Canonical URL for this product on your server. Also used, in the form
+            `{baseUrl}/product/{barcode}`, as the paste-URL import convention the app
+            currently assumes — see `CustomFoodSourceFacade` in the app repo if you need a
+            different URL shape.
+        nutritionFacts:
+          $ref: "#/components/schemas/NutritionFacts"
+          nullable: true
+
+    NutritionFacts:
+      type: object
+      description: >
+        All values are per 100 g/ml of product. All fields are optional/nullable except
+        where noted — omit or send `null` for anything you don't have. Every field except
+        `energy` is in grams; `energy` is in kilocalories.
+      properties:
+        proteins:
+          type: number
+          format: double
+          nullable: true
+        carbohydrates:
+          type: number
+          format: double
+          nullable: true
+        fats:
+          type: number
+          format: double
+          nullable: true
+        energy:
+          type: number
+          format: double
+          nullable: true
+          description: Kilocalories per 100 g/ml.
+        saturatedFats:
+          type: number
+          format: double
+          nullable: true
+        transFats:
+          type: number
+          format: double
+          nullable: true
+        monounsaturatedFats:
+          type: number
+          format: double
+          nullable: true
+        polyunsaturatedFats:
+          type: number
+          format: double
+          nullable: true
+        omega3:
+          type: number
+          format: double
+          nullable: true
+        omega6:
+          type: number
+          format: double
+          nullable: true
+        sugars:
+          type: number
+          format: double
+          nullable: true
+        addedSugars:
+          type: number
+          format: double
+          nullable: true
+        salt:
+          type: number
+          format: double
+          nullable: true
+        dietaryFiber:
+          type: number
+          format: double
+          nullable: true
+        solubleFiber:
+          type: number
+          format: double
+          nullable: true
+        insolubleFiber:
+          type: number
+          format: double
+          nullable: true
+        cholesterol:
+          type: number
+          format: double
+          nullable: true
+        caffeine:
+          type: number
+          format: double
+          nullable: true
+        vitaminA:
+          type: number
+          format: double
+          nullable: true
+        vitaminB1:
+          type: number
+          format: double
+          nullable: true
+        vitaminB2:
+          type: number
+          format: double
+          nullable: true
+        vitaminB3:
+          type: number
+          format: double
+          nullable: true
+        vitaminB5:
+          type: number
+          format: double
+          nullable: true
+        vitaminB6:
+          type: number
+          format: double
+          nullable: true
+        vitaminB7:
+          type: number
+          format: double
+          nullable: true
+        vitaminB9:
+          type: number
+          format: double
+          nullable: true
+        vitaminB12:
+          type: number
+          format: double
+          nullable: true
+        vitaminC:
+          type: number
+          format: double
+          nullable: true
+        vitaminD:
+          type: number
+          format: double
+          nullable: true
+        vitaminE:
+          type: number
+          format: double
+          nullable: true
+        vitaminK:
+          type: number
+          format: double
+          nullable: true
+        manganese:
+          type: number
+          format: double
+          nullable: true
+        magnesium:
+          type: number
+          format: double
+          nullable: true
+        potassium:
+          type: number
+          format: double
+          nullable: true
+        calcium:
+          type: number
+          format: double
+          nullable: true
+        copper:
+          type: number
+          format: double
+          nullable: true
+        zinc:
+          type: number
+          format: double
+          nullable: true
+        sodium:
+          type: number
+          format: double
+          nullable: true
+        iron:
+          type: number
+          format: double
+          nullable: true
+        phosphorus:
+          type: number
+          format: double
+          nullable: true
+        selenium:
+          type: number
+          format: double
+          nullable: true
+        iodine:
+          type: number
+          format: double
+          nullable: true
+        chromium:
+          type: number
+          format: double
+          nullable: true
+
+    PageResponse:
+      type: object
+      required:
+        - count
+        - page
+        - pageSize
+        - products
+      properties:
+        count:
+          type: integer
+          description: >
+            Total number of results available across ALL pages for this query — not the
+            number returned in this page. The app compares it against how much it has
+            already downloaded to decide whether to request the next page, so reporting
+            the size of the current page here makes paging stop after the first one.
+        page:
+          type: integer
+          description: The page number this response corresponds to.
+        pageSize:
+          type: integer
+          description: >
+            The page size that was REQUESTED, not the number of items in this page.
+            The app computes the offset of a page as `(page - 1) * pageSize`, so on a
+            short final page returning the actual item count would make that offset fall
+            short and cause it to request pages that do not exist. Return the requested
+            size on every page, including the last one.
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"

@@ -8,6 +8,8 @@ import com.maksimowiczm.foodyou.food.domain.usecase.DeleteFoodUseCase
 import com.maksimowiczm.foodyou.food.domain.usecase.DownloadProductUseCase
 import com.maksimowiczm.foodyou.food.domain.usecase.ObserveFoodUseCase
 import com.maksimowiczm.foodyou.food.domain.usecase.ObserveMeasurementSuggestionsUseCase
+import com.maksimowiczm.foodyou.food.domain.usecase.PurgeStaleProductsUseCase
+import com.maksimowiczm.foodyou.food.domain.usecase.RefreshProductUseCase
 import com.maksimowiczm.foodyou.food.domain.usecase.UpdateProductUseCase
 import com.maksimowiczm.foodyou.food.domain.usecase.UpdateRecipeUseCase
 import org.koin.core.module.Module
@@ -20,6 +22,8 @@ fun Module.foodDomainModule() {
     factoryOf(::DownloadProductUseCase)
     factoryOf(::ObserveFoodUseCase)
     factoryOf(::ObserveMeasurementSuggestionsUseCase)
+    factoryOf(::PurgeStaleProductsUseCase)
+    factoryOf(::RefreshProductUseCase)
     factoryOf(::UpdateProductUseCase)
     factoryOf(::UpdateRecipeUseCase)
 

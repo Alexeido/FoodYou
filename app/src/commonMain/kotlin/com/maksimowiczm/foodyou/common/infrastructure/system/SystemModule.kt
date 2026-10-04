@@ -7,7 +7,11 @@ import org.koin.dsl.bind
 
 expect fun Module.systemDetailsDefinition()
 
+/** Binds [com.maksimowiczm.foodyou.common.system.InstallationId] per platform. */
+expect fun Module.installationIdDefinition()
+
 fun Module.systemModule() {
     systemDetailsDefinition()
+    installationIdDefinition()
     factoryOf(::DateProviderImpl).bind<DateProvider>()
 }

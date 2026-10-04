@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% import "charts.html" as c %}
+{% block title %}{{ account.username }} · Food You{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/admin">Cuentas</a> / cuenta</p>
+    <h1>{{ account.username }}</h1>
+    <div class="pills" style="margin-top: 10px;">
+      {% if account.is_active %}<span class="pill ok">Activa</span>{% else %}<span class="pill bad">Desactivada</span>{% endif %}
+      {% if account.is_admin %}<span class="pill accent">Admin</span>{% endif %}
+      {% if account.mcp_enabled %}<span class="pill ok">Acceso MCP</span>{% else %}<span class="pill">Sin MCP</span>{% endif %}
+      {% if account.food_account %}<span class="pill">Foods: {{ account.food_account }}</span>{% elif account.mcp_enabled %}<span class="pill warn">Sin cuenta de foods</span>{% endif %}
+      <span class="pill">Desde {{ account.created_at|local("%d/%m/%Y") }}</span>
+    </div>
+    {% if account.note %}<p class="lede">{{ account.note }}</p>{% endif %}
+  </div>
+</div>
+
+{% if error %}<div class="notice bad" role="alert">{{ error }}</div>{% endif %}
+
+{% if new_token %}
+<div class="card" style="border-color: var(--accent);">
+  <div class="card-head">
+    <div>
+      <h2>Token MCP nuevo</h2>
+      <p>Cópialo ahora: es la única vez que se enseña. Para conectarlo a Claude Code:</p>
+    </div>
+  </div>
+  <pre style="white-space: pre-wrap; word-break: break-all; background: var(--surface-2); padding: 12px 14px; border-radius: 10px; margin: 0;"><code id="mcp-command">claude mcp add --transport http foodyou {{ mcp_url }} --header "Authorization: Bearer {{ new_token }}"</code></pre>
+  <p class="faint small" style="margin-bottom: 0;">Token: <code>{{ new_token }}</code></p>
+</div>
+{% endif %}
+
+<section class="stats" aria-label="Resumen de la cuenta">
+  <div class="stat">
+    <span class="label">Sincronizaciones · 30 días</span>
+    <span class="value">{{ daily.points|sum(attribute="value") }}</span>
+    <div class="viz">{{ c.bars(daily, "sincronización", "sincronizaciones", ends=(daily.points[0].label, "hoy")) }}</div>
+  </div>
+  {% for k in kinds %}
+  <div class="stat">
+    <span class="label">{{ kind_names.get(k.kind, k.kind) }}</span>
+    <span class="value">{{ k.live }}</span>
+    {% if k.deleted %}<span class="note">y {{ k.deleted }} borradas</span>{% endif %}
+  </div>
+  {% else %}
+  <div class="stat">
+    <span class="label">Documentos</span>
+    <span class="value">0</span>
+    <span class="note">Todavía no ha sincronizado nada.</span>
+  </div>
+  {% endfor %}
+</section>
+
+<div class="cols">
+  <section class="card">
+    <div class="card-head"><h2>Cuenta</h2></div>
+    <form class="stack" method="post" action="/admin/accounts/{{ account.id }}">
+      <label>Nueva contraseña
+        <span class="hint">Déjala vacía para no cambiarla.</span>
+        <input type="password" name="password" autocomplete="new-password">
+      </label>
+      <fieldset>
+        <legend>Permisos</legend>
+        <label class="check"><input type="checkbox" name="is_active" {% if account.is_active %}checked{% endif %}>
+          <span>Cuenta activa <span class="muted small">— desactivada, sus dispositivos dejan de sincronizar</span></span></label>
+        <label class="check"><input type="checkbox" name="mcp_enabled" {% if account.mcp_enabled %}checked{% endif %}>
+          <span>Acceso MCP <span class="muted small">— un asistente puede leer y escribir su diario con un token</span></span></label>
+        <label class="check"><input type="checkbox" name="is_admin" {% if account.is_admin %}checked{% endif %}>
+          <span>Administrador <span class="muted small">— puede entrar en este panel</span></span></label>
+      </fieldset>
+      <label>Cuenta de foods
+        <span class="hint">El usuario de foods.alexeido.com de esta persona. Lo que Claude busque desde el MCP cuenta para esa cuenta (su límite, sus estadísticas) y sale como «Claude (MCP)». Vacío: cuenta para la cuenta de servicio del MCP.</span>
+        <input type="text" name="food_account" value="{{ account.food_account or '' }}" autocomplete="off" autocapitalize="none" spellcheck="false">
+      </label>
+      <label>Nota
+        <textarea name="note">{{ account.note or '' }}</textarea>
+      </label>
+      <div class="row"><button class="btn" type="submit">Guardar</button></div>
+    </form>
+    {% if account.id != admin.id %}
+    <form method="post" action="/admin/accounts/{{ account.id }}/delete" style="margin-top: 20px;"
+          data-confirm="¿Borrar la cuenta {{ account.username }} y todo lo que tiene sincronizado? No se puede deshacer.">
+      <button class="btn danger" type="submit">Borrar cuenta</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Accesos sin contraseña</h2>
+        <p>Dispositivos emparejados con un código (el reloj) y tokens MCP. Retirar uno corta su acceso al momento.</p>
+      </div>
+    </div>
+    {% if account.mcp_enabled %}
+    <p class="muted" style="margin: 0 0 12px;">En claude.ai (web y móvil): Ajustes → Conectores → Añadir conector personalizado, con la URL <code>{{ mcp_url }}</code>, e iniciar sesión con esta cuenta. Para Claude Code, crea un token:</p>
+    <form class="inline-form" method="post" action="/admin/accounts/{{ account.id }}/mcp-token" style="margin-bottom: 14px;">
+      <input type="text" name="name" placeholder="Nombre (p. ej. Claude Code)" aria-label="Nombre del token">
+      <button class="btn sm" type="submit">Crear token MCP</button>
+    </form>
+    {% endif %}
+    {% if tokens %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tipo</th><th>Nombre</th><th>Último uso</th><th></th></tr></thead>
+        <tbody>
+          {% for t in tokens %}
+          <tr>
+            <td>{% if t.kind == "mcp" %}<span class="pill ok">MCP</span>{% else %}<span class="pill">Dispositivo</span>{% endif %}</td>
+            <td>{{ t.name }}<div class="faint small">creado {{ t.created_at|local("%d/%m/%Y") }}</div></td>
+            <td>{{ t.last_used_at|ago }}</td>
+            <td class="actions">
+              {% if t.revoked %}<span class="pill bad">Retirado</span>
+              {% else %}
+              <form method="post" action="/admin/accounts/{{ account.id }}/tokens/{{ t.id }}/revoke">
+                <button class="btn danger sm" type="submit">Retirar</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted" style="margin: 0;">Ninguno.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-head"><h2>Dispositivos</h2></div>
+  {% if devices %}
+  <div class="table-wrap">
+    <table class="wide">
+      <thead><tr><th>Dispositivo</th><th>App</th><th class="num">Sincronizaciones</th><th>Primera vez</th><th>Última vez</th></tr></thead>
+      <tbody>
+        {% for d in devices %}
+        <tr>
+          <td><code title="{{ d.device }}">{{ d.device[:12] }}</code></td>
+          <td class="muted small">{{ d.user_agent or "—" }}</td>
+          <td class="num">{{ d.syncs }}</td>
+          <td>{{ d.first_seen|local("%d/%m/%Y") }}</td>
+          <td>{{ d.last_seen|ago }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted" style="margin: 0;">Todavía no ha sincronizado ningún dispositivo.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Últimas sincronizaciones con cambios</h2></div>
+  {% if recent %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Cuándo</th><th>Dispositivo</th><th class="num">Enviados</th><th class="num">Recibidos</th></tr></thead>
+      <tbody>
+        {% for r in recent %}
+        <tr>
+          <td class="small">{{ r.at|local("%d/%m %H:%M:%S") }}</td>
+          <td><code>{{ (r.device or "—")[:12] }}</code></td>
+          <td class="num">{{ r.sent }}</td>
+          <td class="num">{{ r.received }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted" style="margin: 0;">Nada todavía.</p>
+  {% endif %}
+</section>
+{% endblock %}

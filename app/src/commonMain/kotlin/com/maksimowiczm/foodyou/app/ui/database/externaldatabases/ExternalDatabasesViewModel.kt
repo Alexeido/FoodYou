@@ -36,4 +36,10 @@ internal class ExternalDatabasesViewModel(
             foodSearchPreferencesRepository.update { copy(usda = usda.copy(enabled = newState)) }
         }
     }
+
+    fun toggleCustom(newState: Boolean) {
+        viewModelScope.launch {
+            foodSearchPreferencesRepository.update { copy(custom = custom.copy(enabled = newState)) }
+        }
+    }
 }

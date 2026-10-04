@@ -2,12 +2,14 @@ package com.maksimowiczm.foodyou.food.infrastructure.network
 
 import com.maksimowiczm.foodyou.food.domain.entity.RemoteProductRequest
 import com.maksimowiczm.foodyou.food.domain.repository.RemoteProductRequestFactory
+import com.maksimowiczm.foodyou.food.infrastructure.customsource.CustomFoodSourceFacade
 import com.maksimowiczm.foodyou.food.infrastructure.openfoodfacts.OpenFoodFactsFacade
 import com.maksimowiczm.foodyou.food.infrastructure.usda.USDAFacade
 
 internal class RemoteProductRequestFactoryImpl(
     private val openFoodFacts: OpenFoodFactsFacade,
     private val usda: USDAFacade,
+    private val custom: CustomFoodSourceFacade,
 ) : RemoteProductRequestFactory {
     override suspend fun create(url: String): RemoteProductRequest? =
         when {
@@ -15,6 +17,8 @@ internal class RemoteProductRequestFactoryImpl(
                 openFoodFacts.extractBarcode(url)?.let(openFoodFacts::createRequest)
 
             usda.matches(url) -> usda.extractId(url)?.let { usda.createRequest(it) }
+
+            custom.matches(url) -> custom.extractBarcode(url)?.let { custom.createRequest(it) }
 
             else -> null
         }

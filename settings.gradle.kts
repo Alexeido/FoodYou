@@ -36,4 +36,7 @@ include(":shared:barcodescanner")
 
 include(":shared:resources")
 
+// App de Wear OS: se empareja con la cuenta de sincronización y marca lo comido.
+include(":wear")
+
 include(":app4")

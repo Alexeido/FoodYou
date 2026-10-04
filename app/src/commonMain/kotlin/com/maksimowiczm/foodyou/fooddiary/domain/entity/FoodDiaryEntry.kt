@@ -29,6 +29,8 @@ data class FoodDiaryEntry(
     override val createdAt: LocalDateTime,
     override val updatedAt: LocalDateTime,
     override val position: Int = 0,
+    /** Logged by the AI assistant rather than by hand. */
+    val createdByAssistant: Boolean = false,
 ) : DiaryEntry {
     override val name: String = food.name
 

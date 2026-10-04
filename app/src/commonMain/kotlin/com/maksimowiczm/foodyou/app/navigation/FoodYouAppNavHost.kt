@@ -11,6 +11,10 @@ import com.maksimowiczm.foodyou.app.ui.database.exportcsvproducts.ExportCsvProdu
 import com.maksimowiczm.foodyou.app.ui.database.externaldatabases.ExternalDatabasesScreen
 import com.maksimowiczm.foodyou.app.ui.database.externaldatabases.UpdateUsdaApiKeyDialog
 import com.maksimowiczm.foodyou.app.ui.database.importcsvproducts.ImportCsvProductsScreen
+import com.maksimowiczm.foodyou.app.ui.assistant.chat.AssistantChatScreen
+import com.maksimowiczm.foodyou.app.ui.assistant.history.AssistantConversationsScreen
+import com.maksimowiczm.foodyou.app.ui.assistant.settings.AssistantSettingsScreen
+import com.maksimowiczm.foodyou.app.ui.sync.SyncSettingsScreen
 import com.maksimowiczm.foodyou.app.ui.database.master.DatabaseSettingsScreen
 import com.maksimowiczm.foodyou.app.ui.database.swissfoodcompositiondatabase.SwissFoodCompositionDatabaseScreen
 import com.maksimowiczm.foodyou.app.ui.food.diary.add.AddEntryScreen
@@ -52,6 +56,7 @@ fun FoodYouAppNavHost(onDatabaseBackup: () -> Unit, modifier: Modifier = Modifie
         forwardBackwardComposable<Home> {
             HomeScreen(
                 onSettings = { navController.navigateSingleTop(Settings) },
+                onAssistant = { navController.navigateSingleTop(AssistantChat) },
                 onTitle = { navController.navigateSingleTop(About) },
                 onMealCardLongClick = { navController.navigateSingleTop(MealsPersonalization) },
                 onMealCardAddClick = { epochDay, mealId ->
@@ -90,7 +95,34 @@ fun FoodYouAppNavHost(onDatabaseBackup: () -> Unit, modifier: Modifier = Modifie
                 onLanguage = { navController.navigateSingleTop(Language) },
                 onGoals = { navController.navigateSingleTop(GoalsSetup) },
                 onPersonalization = { navController.navigateSingleTop(Personalization) },
+                onAssistant = { navController.navigateSingleTop(AssistantSettings) },
                 onDatabase = { navController.navigateSingleTop(DatabaseSettings) },
+                onSync = { navController.navigateSingleTop(SyncSettings) },
+            )
+        }
+        forwardBackwardComposable<SyncSettings> {
+            SyncSettingsScreen(onBack = { navController.popBackStackInclusive<SyncSettings>() })
+        }
+        forwardBackwardComposable<AssistantChat> {
+            AssistantChatScreen(
+                onBack = { navController.popBackStackInclusive<AssistantChat>() },
+                onOpenSettings = { navController.navigateSingleTop(AssistantSettings) },
+                onOpenConversations = {
+                    navController.navigateSingleTop(AssistantConversationHistory)
+                },
+            )
+        }
+        forwardBackwardComposable<AssistantConversationHistory> {
+            AssistantConversationsScreen(
+                onBack = { navController.popBackStackInclusive<AssistantConversationHistory>() },
+                onOpenConversation = {
+                    navController.popBackStackInclusive<AssistantConversationHistory>()
+                },
+            )
+        }
+        forwardBackwardComposable<AssistantSettings> {
+            AssistantSettingsScreen(
+                onBack = { navController.popBackStackInclusive<AssistantSettings>() }
             )
         }
         forwardBackwardComposable<Language> {
@@ -379,6 +411,14 @@ fun FoodYouAppNavHost(onDatabaseBackup: () -> Unit, modifier: Modifier = Modifie
 @Serializable private data class Goals(val epochDay: Long)
 
 @Serializable private object GoalsSetup
+
+@Serializable private object AssistantChat
+
+@Serializable private object AssistantConversationHistory
+
+@Serializable private object AssistantSettings
+
+@Serializable private object SyncSettings
 
 @Serializable private object DatabaseSettings
 

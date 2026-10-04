@@ -1,0 +1,115 @@
+{#- Gráficas del panel. Todas reciben datos ya agrupados (app/admin/charts.py)
+    y llevan data-tip en cada marca para el tooltip de admin.js. Cada columna
+    tiene una zona invisible del alto entero para que el ratón no tenga que
+    acertar en una barra de dos píxeles. -#}
+
+{% macro plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+
+{#- Barras verticales pequeñas (una serie). `danger` las pinta en rojo de estado. -#}
+{% macro bars(series, unit="búsqueda", units="búsquedas", danger=false, ends=none, cls="") %}
+{%- set n = series.points|length -%}
+{%- set peak = series.peak -%}
+<svg class="spark {{ cls }}" viewBox="0 0 {{ n * 10 }} 40" preserveAspectRatio="none" aria-hidden="true">
+  {%- for p in series.points %}
+  {%- set h = (p.value / peak * 38) if peak else 0 %}
+  <g data-tip="{{ p.label }} · {{ plural(p.value|int, unit, units) }}">
+    <rect x="{{ loop.index0 * 10 }}" y="0" width="10" height="40" fill="transparent"/>
+    <rect class="bar{% if not p.value %} zero{% elif danger %} bad{% endif %}"
+          x="{{ loop.index0 * 10 + 1 }}" y="{{ 40 - (h if p.value else 1.5) }}"
+          width="8" height="{{ h if p.value else 1.5 }}"/>
+  </g>
+  {%- endfor %}
+</svg>
+{%- if ends %}<div class="axis-ends"><span>{{ ends[0] }}</span><span>{{ ends[1] }}</span></div>{% endif %}
+{% endmacro %}
+
+{#- Línea con área, para totales que solo crecen o medias. `avg` dibuja una
+    referencia discontinua. -#}
+{% macro line(series, unit="búsqueda", units="búsquedas", avg=none, ends=none, floor_zero=true) %}
+{%- set n = series.points|length -%}
+{%- set values = series.points|map(attribute="value")|list -%}
+{%- set top = series.peak -%}
+{%- set bottom = 0 if floor_zero else (values|min) -%}
+{%- set span = (top - bottom) or 1 -%}
+{%- macro y(v) %}{{ (38 - (v - bottom) / span * 34)|round(2) }}{% endmacro -%}
+{%- macro x(i) %}{{ (i / ((n - 1) or 1) * 100)|round(2) }}{% endmacro -%}
+<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+  <path class="area" d="M0,40 {% for p in series.points %}L{{ x(loop.index0) }},{{ y(p.value) }} {% endfor %}L100,40 Z"/>
+  {%- if avg is not none and top %}
+  <line class="avg" x1="0" x2="100" y1="{{ y(avg) }}" y2="{{ y(avg) }}"/>
+  {%- endif %}
+  <polyline class="line" points="{% for p in series.points %}{{ x(loop.index0) }},{{ y(p.value) }} {% endfor %}"/>
+  {%- for p in series.points %}
+  <rect data-tip="{{ p.label }} · {{ plural(p.value|int, unit, units) }}" x="{{ (x(loop.index0)|float) - 50 / ((n - 1) or 1) }}" y="0" width="{{ 100 / ((n - 1) or 1) }}" height="40" fill="transparent"/>
+  {%- endfor %}
+</svg>
+{%- if ends %}<div class="axis-ends"><span>{{ ends[0] }}</span><span>{{ ends[1] }}</span></div>{% endif %}
+{% endmacro %}
+{#- Barras apiladas por día (dispositivos o usuarios), con leyenda y tabla. -#}
+{% macro stacked(chart, label) %}
+{%- set peak = chart.peak -%}
+{%- if peak %}
+<div class="stack-chart">
+  <div class="y" aria-hidden="true"><span>{{ peak }}</span><span>{{ (peak / 2)|round(0)|int }}</span><span>0</span></div>
+  <div class="plot" role="img" aria-label="{{ label }}; los datos están en la tabla">
+    {%- for d in chart.days %}
+    <div class="col" data-tip="{{ d.label }} · {{ plural(d.total, 'búsqueda', 'búsquedas') }}{% for s, n in d.segments %}&#10;{{ s.label }}: {{ n }}{% endfor %}">
+      {%- for s, n in d.segments %}<span style="height: {{ (100 * n / peak)|round(2) }}%; background: var({{ s.css_var }});"></span>{% endfor %}
+    </div>
+    {%- endfor %}
+  </div>
+  <div class="x" aria-hidden="true">
+    <span>{{ chart.days[0].label }}</span><span>{{ chart.days[(chart.days|length) // 2].label }}</span><span>hoy</span>
+  </div>
+</div>
+<div class="legend" style="margin-top: 14px;">
+  {%- for s in chart.legend %}<span><i class="key" style="background: var({{ s.css_var }});"></i>{{ s.label }} <b>{{ s.total }}</b></span>{% endfor %}
+</div>
+<details>
+  <summary>Ver como tabla</summary>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Día</th><th class="num">Total</th><th>Detalle</th></tr></thead>
+      <tbody>
+        {%- for d in chart.days|reverse if d.total %}
+        <tr>
+          <td>{{ d.label }}</td><td class="num">{{ d.total }}</td>
+          <td>{% for s, n in d.segments %}<i class="key" style="background: var({{ s.css_var }});"></i>{{ s.label }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{%- else %}
+<p class="muted">Sin búsquedas en este periodo.</p>
+{%- endif %}
+{% endmacro %}
+
+{#- Mapa de calor de la semana: filas = días, columnas = horas. Escala de un
+    solo tono, de claro a oscuro. -#}
+{% macro heatmap(h, weekdays, weekday_names) %}
+{%- if h.peak %}
+<div class="heat" role="img" aria-label="Búsquedas por día de la semana y hora{% if h.busiest %}; el momento con más es {{ h.busiest }}{% endif %}">
+  <span></span>
+  {%- for hour in range(24) %}<span class="h">{% if hour % 3 == 0 %}{{ hour }}{% endif %}</span>{% endfor %}
+  {%- for row in h.cells %}
+  {%- set wd = loop.index0 %}
+  <span class="d">{{ weekdays[wd] }}</span>
+  {%- for v in row %}
+  {%- set level = 0 if not v else ((v / h.peak * 4)|round(0, "ceil")|int) %}
+  <span class="cell" data-tip="{{ weekday_names[wd] }}, {{ loop.index0 }}:00 · {{ plural(v, 'búsqueda', 'búsquedas') }}"
+        {% if level %}style="background: color-mix(in oklab, var(--accent) {{ [22, 45, 70, 100][level - 1] }}%, var(--grid));"{% endif %}></span>
+  {%- endfor %}
+  {%- endfor %}
+</div>
+<div class="heat-scale">
+  menos
+  <span style="background: var(--grid);"></span>
+  {%- for pct in [22, 45, 70, 100] %}<span style="background: color-mix(in oklab, var(--accent) {{ pct }}%, var(--grid));"></span>{% endfor %}
+  más
+</div>
+{%- else %}
+<p class="muted">Sin búsquedas en este periodo.</p>
+{%- endif %}
+{% endmacro %}

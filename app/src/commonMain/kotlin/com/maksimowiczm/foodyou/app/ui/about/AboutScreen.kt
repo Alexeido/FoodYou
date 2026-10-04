@@ -1,5 +1,6 @@
 package com.maksimowiczm.foodyou.app.ui.about
 
+import com.maksimowiczm.foodyou.app.BuildConfig
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,6 +105,12 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         append(stringResource(Res.string.headline_version))
                         append(" ")
                         append(appConfig.versionName)
+                        // La compilación dice exactamente qué APK es (la del actualizador).
+                        if (BuildConfig.BUILD_NUMBER > 0) {
+                            append(" (")
+                            append(BuildConfig.BUILD_NUMBER)
+                            append(")")
+                        }
                     },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

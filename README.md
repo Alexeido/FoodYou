@@ -12,10 +12,19 @@
 
 </div>
 
-> **Fork notice:** This is a personal fork of [Food You](https://github.com/maksimowiczm/FoodYou) by [Mateusz Maksimowicz](https://github.com/maksimowiczm), maintained by [Alexeido](https://github.com/Alexeido). It includes additional features and customizations on top of the original project.
+**Food You** is a free, open-source food diary and nutrition tracker for Android, built with
+[Material Design](https://m3.material.io/). It keeps your diary on your phone, and since 4.0 it can
+also log food for you, keep several devices in sync, sit on your wrist and talk to your AI
+assistant of choice.
 
-**Food You** is a free, open-source, and privacy-focused food diary and nutrition tracker built
-using [Material Design](https://m3.material.io/) principles.
+> **About this fork.** Food You started as a fork of
+> [maksimowiczm/FoodYou](https://github.com/maksimowiczm/FoodYou) by
+> [Mateusz Maksimowicz](https://github.com/maksimowiczm), to whom all the foundations belong. The
+> original project is no longer maintained, so this fork has been developed on its own since
+> version 4.0, maintained by [Alexeido](https://github.com/Alexeido). Each release moves it further
+> from upstream: an AI assistant, real recipes, sync, a Wear OS app and an MCP server are all
+> specific to it. Package names still say `com.maksimowiczm.foodyou`, so existing installs keep
+> updating.
 
 ## ✨ Features
 
@@ -30,38 +39,67 @@ using [Material Design](https://m3.material.io/) principles.
 
 <br>
 
-- 🔒 **Privacy First** – No account required, all data stored locally on your device
-- 🧩 **Modular Home Screen** – Customize your home view with functional cards that suit your habits
-- 📚 **Comprehensive Food Databases** – Seamlessly integrates Open Food Facts, USDA FoodData Central,
-  and Swiss Food Composition Database
-- 🧪 **Full Nutrition Tracking** – Set and track personalized nutrition targets, monitoring not only
-  calories and macros but also vitamins, minerals, and other essential nutrients
-- 🍲 **Recipe Creation** – Create custom recipes by combining foods, with nutrition calculated
-  instantly
-- 🎨 **Material You Design** – Adaptive theming and modern UI
+### New in 4.x
+
+- 🤖 **AI assistant.** Tell it, or show it a photo, of what you ate and it logs it. It plans whole
+  days in a draft before writing anything, explains where a nutrient comes from, remembers what you
+  tell it about yourself, and every change it makes can be undone and redone. It works with your
+  own API key.
+- 🍲 **Real recipes.** A dish is made of real foods with their own grams. You can change one
+  ingredient for a single day without touching the recipe, and mark recipes as favourites.
+- 🎯 **Nutrients you want to reach.** Pick calcium, iron, vitamin D, fibre or any other nutrient
+  and it shows next to your macros on the home card, as a target to reach or a limit to stay under.
+  The assistant takes it into account too.
+- 🔄 **Sync across devices.** Your diary, goals, recipes and the assistant's memory stay the same on
+  every phone within seconds, and keep working offline. It runs on your own server: see
+  [`sync-server/`](sync-server/).
+- ⌚ **Wear OS companion.** See today's meals and tick off what you've eaten from your watch. You
+  pair it with a 6-digit code: [`wear/`](wear/).
+- 🧠 **Use your diary from Claude and other assistants.** An [MCP](https://modelcontextprotocol.io)
+  server reads and writes your diary, recipes and goals. It works with Claude Code or as a custom
+  connector in the Claude apps: [`mcp-server/`](mcp-server/).
+- 🗄️ **Your own food database.** Connect a self-hosted food database, with username and password,
+  for text and barcode search alongside the built-in sources.
+- ⬆️ **In-app updates.** You get a notice when a new version is out, and it downloads and installs
+  without leaving the app.
+- 🎨 **Redesigned search and diary.** Category icons, the brand on its own line, recently logged
+  meals one tap away, and a goals card that animates as you tick food off.
+
+### Since the beginning
+
+- 🔒 **Privacy first.** No account required, and everything stays on your device unless you turn
+  on sync with your own server.
+- 🧩 **Modular home screen.** Arrange the cards that suit your habits.
+- 📚 **Food databases.** Open Food Facts, USDA FoodData Central and the Swiss Food Composition
+  Database.
+- 🧪 **Full nutrition tracking.** Calories and macros, plus vitamins, minerals and other nutrients.
+- 🎨 **Material You.** Adaptive theming and a modern UI.
+
+## 🗂️ Repository
+
+| Path | What it is |
+|---|---|
+| [`app/`](app/) | The Android app (Kotlin Multiplatform, Compose) |
+| [`wear/`](wear/) | The Wear OS companion |
+| [`sync-server/`](sync-server/) | Self-hosted sync server (FastAPI + SQLite) with a web admin panel |
+| [`mcp-server/`](mcp-server/) | MCP server that gives AI assistants access to your diary |
+| [`docs/sync/protocol.md`](docs/sync/protocol.md) | The sync protocol shared by the app, the watch and the MCP |
+| [`shared/`](shared/) | Resources and the barcode scanner |
+
+Build the app with `./gradlew :app:assembleDebug` and the watch app with
+`./gradlew :wear:assembleDebug`. Each server has its own README and Dockerfile.
 
 ## 🤝 Contributing
 
-Want to help make Food You even better? Here are some great ways to contribute:
-
-- 🌍 **Translate the App** – Help improve international accessibility
-  via [Crowdin](https://crowdin.com/project/food-you). Let me know if you'd like to credited
-- 💡 **Request a Feature** – Got an idea? Open
-  a [GitHub issue](https://github.com/Alexeido/FoodYou/issues) to suggest a new feature or
-  improvement
-- 🐞 **Report Bugs** – Found a bug? Submit it
-  via [GitHub issue](https://github.com/Alexeido/FoodYou/issues) so it can be fixed
-- ⭐ **Star the Repository** – If you like the project, give it a star
-
-## ✉️ Contact
-
-Have questions or feedback about this fork? Open an issue on GitHub!
-
-- **GitHub Issues**: [github.com/Alexeido/FoodYou/issues](https://github.com/Alexeido/FoodYou/issues)
+- 💡 **Request a feature.** Open a [GitHub issue](https://github.com/Alexeido/FoodYou/issues).
+- 🐞 **Report a bug.** Open a [GitHub issue](https://github.com/Alexeido/FoodYou/issues) and
+  include the version shown in Settings → About.
+- 🌍 **Translate.** Translations come from the original project on
+  [Crowdin](https://crowdin.com/project/food-you). Strings added in this fork are in English and
+  Spanish for now, so pull requests for other languages are welcome.
+- ⭐ **Star the repository** if you find it useful.
 
 ## 🔄 Similar Open-Source Apps
-
-Looking for alternatives or similar tools?
 
 - [OpenNutriTracker](https://github.com/simonoppowa/OpenNutriTracker)
 - [Energize](https://codeberg.org/epinez/Energize)
@@ -78,7 +116,7 @@ Looking for alternatives or similar tools?
 
 ```
 Copyright (C) 2024-2025 Mateusz Maksimowicz
-Copyright (C) 2025-2026 Alexeido (fork maintainer)
+Copyright (C) 2025-2026 Alexeido
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

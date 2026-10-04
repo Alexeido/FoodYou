@@ -34,7 +34,9 @@ internal fun FoodSearchErrorCard(
 ) {
     when (error) {
         is RemoteFoodException.Unknown,
-        is RemoteFoodException.OpenFoodFacts.RateLimit ->
+        is RemoteFoodException.OpenFoodFacts.RateLimit,
+        is RemoteFoodException.Custom.NotConfigured,
+        is RemoteFoodException.Custom.Unauthorized ->
             FoodSearchErrorCard(
                 message = error.message,
                 onRetry = onRetry,

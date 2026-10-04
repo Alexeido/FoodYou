@@ -12,6 +12,7 @@ fun Module.foodSearchDomainModule() {
                 foodSearchPreferencesRepository = userPreferencesRepository(),
                 foodRemoteMediatorFactoryAggregate = get(),
                 openFoodFactsNetworkPagingSourceFactory = get(),
+                customFoodSourceNetworkPagingSourceFactory = get(),
                 eventBus = get(),
                 dateProvider = get(),
             )

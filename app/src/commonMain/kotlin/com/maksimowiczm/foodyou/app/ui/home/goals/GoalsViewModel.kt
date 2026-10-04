@@ -1,8 +1,11 @@
 package com.maksimowiczm.foodyou.app.ui.home.goals
 
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsCardStyle
+import com.maksimowiczm.foodyou.settings.domain.entity.GoalsFigureValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maksimowiczm.foodyou.common.domain.food.NutritionFactsField
+import com.maksimowiczm.foodyou.common.domain.food.get
 import com.maksimowiczm.foodyou.common.domain.food.sum
 import com.maksimowiczm.foodyou.common.domain.userpreferences.UserPreferencesRepository
 import com.maksimowiczm.foodyou.fooddiary.domain.usecase.ObserveDiaryMealsUseCase
@@ -42,6 +45,49 @@ internal class GoalsViewModel(
             initialValue = runBlocking { _expandGoalsCard.first() },
         )
 
+    private val _goalsCardStyle = settingsRepository.observe().map { it.goalsCardStyle }
+    val goalsCardStyle: StateFlow<GoalsCardStyle> =
+        _goalsCardStyle.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(2_000),
+            initialValue = runBlocking { _goalsCardStyle.first() },
+        )
+
+    fun setGoalsCardStyle(style: GoalsCardStyle) {
+        viewModelScope.launch { settingsRepository.update { copy(goalsCardStyle = style) } }
+    }
+
+    private val _goalsFigureValue = settingsRepository.observe().map { it.goalsFigureValue }
+    val goalsFigureValue: StateFlow<GoalsFigureValue> =
+        _goalsFigureValue.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(2_000),
+            initialValue = runBlocking { _goalsFigureValue.first() },
+        )
+
+    fun setGoalsFigureValue(value: GoalsFigureValue) {
+        viewModelScope.launch { settingsRepository.update { copy(goalsFigureValue = value) } }
+    }
+
+    /** The nutrients the person wants to reach, for the card's settings. */
+    val trackedNutrients: StateFlow<List<NutritionFactsField>> =
+        goalsRepository
+            .observeTrackedNutrients()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(2_000),
+                initialValue = emptyList(),
+            )
+
+    fun toggleTrackedNutrient(field: NutritionFactsField) {
+        viewModelScope.launch {
+            val current = goalsRepository.observeTrackedNutrients().first()
+            goalsRepository.setTrackedNutrients(
+                if (field in current) current - field else current + field
+            )
+        }
+    }
+
     fun setExpandGoalsCard(expand: Boolean) {
         viewModelScope.launch { settingsRepository.update { copy(expandGoalCard = expand) } }
     }
@@ -53,7 +99,8 @@ internal class GoalsViewModel(
                 combine(
                     observeDiaryMealsUseCase.observe(date),
                     goalsRepository.observeDailyGoals(date),
-                ) { meals, goal ->
+                    goalsRepository.observeTrackedNutrients(),
+                ) { meals, goal, tracked ->
                     val facts = meals.map { it.nutritionFacts }.sum()
 
                     DaySummaryModel(
@@ -65,6 +112,17 @@ internal class GoalsViewModel(
                         carbohydratesGoal = goal[NutritionFactsField.Carbohydrates].roundToInt(),
                         fats = facts.fats.value?.roundToInt() ?: 0,
                         fatsGoal = goal[NutritionFactsField.Fats].roundToInt(),
+                        tracked =
+                            tracked.mapNotNull { field ->
+                                val target = goal.map[field] ?: return@mapNotNull null
+                                val value = facts[field]
+                                TrackedNutrientModel(
+                                    field = field,
+                                    grams = value.value ?: 0.0,
+                                    goalGrams = target,
+                                    complete = value.isComplete,
+                                )
+                            },
                     )
                 }
             }

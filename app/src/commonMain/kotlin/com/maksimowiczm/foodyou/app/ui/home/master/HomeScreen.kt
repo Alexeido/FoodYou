@@ -52,12 +52,17 @@ import com.maksimowiczm.foodyou.fooddiary.domain.entity.MealsCardsLayout
 import com.maksimowiczm.foodyou.settings.domain.entity.HomeCard
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.material.icons.outlined.AutoAwesome
+import com.maksimowiczm.foodyou.assistant.domain.AssistantPreferences
+import com.maksimowiczm.foodyou.assistant.domain.AssistantSettings
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun HomeScreen(
     onSettings: () -> Unit,
+    onAssistant: () -> Unit,
     onTitle: () -> Unit,
     onMealCardLongClick: (mealId: Long) -> Unit,
     onMealCardAddClick: (epochDay: Long, mealId: Long) -> Unit,
@@ -70,6 +75,13 @@ fun HomeScreen(
     val viewModel: HomeViewModel = koinViewModel()
     val order by viewModel.homeOrder.collectAsStateWithLifecycle()
     val homeState = rememberHomeState()
+
+    // Sin clave ni modelo configurados el icono no existe: no hay hueco, no hay estado apagado,
+    // y nada que explicar. La entrada en Ajustes sigue ahi para quien quiera activarlo.
+    val assistantSettings by
+        koinInject<AssistantPreferences>()
+            .observe()
+            .collectAsStateWithLifecycle(AssistantSettings())
 
     val calendarViewModel: CalendarViewModel = koinViewModel()
     val streak by calendarViewModel.streak.collectAsStateWithLifecycle()
@@ -182,6 +194,17 @@ fun HomeScreen(
                                 )
                             }
                         }
+                        if (assistantSettings.isConfigured) {
+                            IconButton(onClick = onAssistant) {
+                                Icon(
+                                    imageVector = Icons.Outlined.AutoAwesome,
+                                    contentDescription =
+                                        stringResource(Res.string.headline_assistant),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+
                         IconButton(onClick = onSettings) {
                             Icon(
                                 imageVector = Icons.Filled.Settings,

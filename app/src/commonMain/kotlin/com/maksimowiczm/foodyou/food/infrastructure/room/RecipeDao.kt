@@ -58,4 +58,35 @@ abstract class RecipeDao {
     }
 
     @Delete abstract suspend fun delete(recipe: RecipeEntity)
+
+    /**
+     * Recipes matching an FTS query built by `recipeFtsQuery`, newest first.
+     *
+     * Through the full-text index rather than LIKE so accents and case do not matter. Only recipes
+     * with at least one ingredient: the repository builds a recipe by combining the flows of its
+     * ingredients, and `combine` over an empty list never emits - anything awaiting the first value
+     * of an empty recipe would hang forever.
+     */
+    @Query(
+        """
+        SELECT r.id FROM Recipe r JOIN RecipeFts fts ON r.id = fts.rowid
+        WHERE RecipeFts MATCH :match
+          AND EXISTS (SELECT 1 FROM RecipeIngredient WHERE recipeId = r.id)
+        ORDER BY r.id DESC
+        LIMIT :limit
+        """
+    )
+    abstract suspend fun searchRecipeIds(match: String, limit: Int): List<Long>
+
+    @Query("SELECT * FROM Recipe WHERE id = :recipeId")
+    abstract suspend fun getRecipe(recipeId: Long): RecipeEntity?
+
+    @Query("SELECT * FROM RecipeIngredient WHERE recipeId = :recipeId")
+    abstract suspend fun getRecipeIngredients(recipeId: Long): List<RecipeIngredientEntity>
+
+    @Query("DELETE FROM Recipe WHERE id = :recipeId")
+    abstract suspend fun deleteById(recipeId: Long)
+
+    @Query("UPDATE Recipe SET isFavorite = :isFavorite WHERE id = :recipeId")
+    abstract suspend fun updateFavorite(recipeId: Long, isFavorite: Boolean)
 }

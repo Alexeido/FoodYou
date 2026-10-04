@@ -46,8 +46,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.maksimowiczm.foodyou.app.ui.food.search.FoodCategory
-import com.maksimowiczm.foodyou.app.ui.food.search.getFoodCategoryFromTags
+import com.maksimowiczm.foodyou.app.ui.food.search.diaryCategory
+import com.maksimowiczm.foodyou.common.domain.measurement.Measurement
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maksimowiczm.foodyou.app.ui.common.component.ArrowBackIconButton
 import com.maksimowiczm.foodyou.app.ui.common.theme.LocalNutrientsPalette
@@ -57,12 +57,14 @@ import com.maksimowiczm.foodyou.app.ui.food.diary.component.FoodMeasurementFormS
 import com.maksimowiczm.foodyou.app.ui.food.diary.component.Source
 import com.maksimowiczm.foodyou.app.ui.food.diary.component.rememberFoodMeasurementFormState
 import com.maksimowiczm.foodyou.common.compose.extension.LaunchedCollectWithLifecycle
+import androidx.compose.material.icons.rounded.Check
+import com.maksimowiczm.foodyou.app.ui.food.diary.component.FoodDetailUi
+import com.maksimowiczm.foodyou.app.ui.food.diary.component.FoodEntryDetailScaffold
 import com.maksimowiczm.foodyou.common.compose.extension.add
 import com.maksimowiczm.foodyou.common.compose.utility.formatClipZeros
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFood
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodProduct
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.DiaryFoodRecipe
-import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntry
 import com.maksimowiczm.foodyou.fooddiary.domain.entity.FoodDiaryEntryId
 import foodyou.app.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -88,10 +90,11 @@ fun UpdateEntryScreen(
     }
 
     val entry = viewModel.entry.collectAsStateWithLifecycle().value
+    val food = viewModel.food.collectAsStateWithLifecycle().value
     val possibleTypes = viewModel.possibleMeasurementTypes.collectAsStateWithLifecycle().value
     val suggestions = viewModel.suggestions.collectAsStateWithLifecycle().value
 
-    if (entry == null || suggestions == null || possibleTypes == null) {
+    if (entry == null || food == null || suggestions == null || possibleTypes == null) {
         // TODO loading state
     } else {
         val state =
@@ -117,8 +120,19 @@ fun UpdateEntryScreen(
                     date = entry.date,
                 )
             },
+            onEditIngredient = { index, measurement ->
+                viewModel
+                    .editIngredient(
+                        currentMeasurement = state.measurementState.measurement,
+                        index = index,
+                        measurement = measurement,
+                    )
+                    // La racion pasa a ser el plato nuevo entero: asi la lista y los totales
+                    // siguen cuadrando con lo que se acaba de escribir.
+                    ?.let { state.measurementState.setWeightGrams(it.toFloat()) }
+            },
             state = state,
-            entry = entry,
+            food = food,
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = modifier,
         )
@@ -130,314 +144,53 @@ private fun UpdateEntryScreen(
     onBack: () -> Unit,
     onUnpack: () -> Unit,
     onSave: () -> Unit,
+    onEditIngredient: (index: Int, measurement: Measurement) -> Unit,
     state: FoodMeasurementFormState,
-    entry: FoodDiaryEntry,
+    food: DiaryFood,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val topBar =
-        @Composable {
-            MediumTopAppBar(
-                title = {
-                    val (parsedName, parsedBrand) = remember(entry.food.name) { parseNameAndBrand(entry.food.name) }
-                    val category = remember(entry.food) {
-                        when (val f = entry.food) {
-                            is DiaryFoodProduct -> getFoodCategoryFromTags(f.categories)
-                            is DiaryFoodRecipe -> FoodCategory.UNKNOWN
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = category.emoji,
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                        Column {
-                            Text(parsedName)
-                            if (parsedBrand != null) {
-                                Text(
-                                    text = parsedBrand,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontStyle = FontStyle.Italic,
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = { ArrowBackIconButton(onBack) },
-                scrollBehavior = scrollBehavior,
-            )
-        }
-    val fab =
-        @Composable {
-            Column(
-                modifier =
-                    Modifier.animateFloatingActionButton(
-                        visible = !animatedVisibilityScope.transition.isRunning && state.isValid,
-                        alignment = Alignment.BottomEnd,
-                    ),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (entry.food is DiaryFoodRecipe) {
-                    ExtendedFloatingActionButton(
-                        onClick = {
-                            if (state.isValid) {
-                                onUnpack()
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.CallSplit,
-                                contentDescription = null,
-                            )
-                        },
-                        text = { Text(stringResource(Res.string.action_unpack)) },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-                FloatingActionButton(
-                    onClick = {
-                        if (state.isValid) {
-                            onSave()
-                        }
-                    },
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = stringResource(Res.string.action_save),
-                    )
-                }
-            }
-        }
+    val ui = remember(food) { food.toFoodDetailUi() }
 
-    Scaffold(modifier = modifier, topBar = topBar, floatingActionButton = fab) { paddingValues ->
-        LazyColumn(
-            modifier =
-                Modifier.fillMaxSize()
-                    .imePadding()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding =
-                paddingValues.add(vertical = 8.dp).let {
-                    if (entry.food is DiaryFoodRecipe) {
-                        it.add(bottom = 8.dp + 56.dp + 8.dp + 56.dp + 24.dp) // Double FAB
-                    } else {
-                        it.add(bottom = 56.dp + 24.dp) // Single FAB
-                    }
-                },
-        ) {
-            item { HorizontalDivider(Modifier.padding(horizontal = 8.dp)) }
-
-            item {
-                MacroSummaryRow(
-                    food = entry.food,
-                    measurementState = state.measurementState,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-            }
-
-            item {
-                HorizontalDivider(Modifier.padding(horizontal = 8.dp))
-                MeasurementPicker(
-                    state = state.measurementState,
-                    servingWeight = entry.food.servingWeight,
-                    totalWeight = entry.food.totalWeight,
-                    isLiquid = entry.food.isLiquid,
-                    modifier = Modifier.padding(8.dp),
-                )
-            }
-
-            val food = entry.food
+    FoodEntryDetailScaffold(
+        ui = ui,
+        measurementState = state.measurementState,
+        isValid = state.isValid,
+        onBack = onBack,
+        onConfirm = onSave,
+        // Editing an entry that already exists: this confirms the change rather than adding a row.
+        confirmIcon = Icons.Rounded.Check,
+        confirmDescription = stringResource(Res.string.action_save),
+        fabVisible = true,
+        canUnpack = food is DiaryFoodRecipe,
+        onUnpack = onUnpack,
+        animatedVisibilityScope = animatedVisibilityScope,
+        modifier = modifier,
+        ingredients =
             if (food is DiaryFoodRecipe) {
-                item {
-                    val measurement = state.measurementState.measurement
-                    val ingredients = food.unpack(measurement)
-
-                    HorizontalDivider(Modifier.padding(horizontal = 8.dp))
+                { measurement ->
                     Ingredients(
-                        ingredients = ingredients,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        ingredients = food.unpack(measurement),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        onEdit = onEditIngredient,
                     )
                 }
-            }
-
-            item {
-                HorizontalDivider(Modifier.padding(horizontal = 8.dp))
-                NutrientList(
-                    food = food,
-                    measurement = state.measurementState.measurement,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
-            }
-
-            val note = food.note
-            if (note != null) {
-                item {
-                    HorizontalDivider(Modifier.padding(horizontal = 8.dp))
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            text = stringResource(Res.string.headline_note),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(text = note, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-
-            if (food is DiaryFoodProduct) {
-                item {
-                    HorizontalDivider(Modifier.padding(horizontal = 8.dp))
-                    Column(Modifier.padding(8.dp)) {
-                        Text(
-                            text = stringResource(Res.string.headline_source),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Source(food.source)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MacroSummaryRow(
-    food: DiaryFood,
-    measurementState: MeasurementPickerState,
-    modifier: Modifier = Modifier,
-) {
-    val facts = remember(food, measurementState.measurement) {
-        food.nutritionFacts * (food.weight(measurementState.measurement) / 100.0)
-    }
-    val palette = LocalNutrientsPalette.current
-
-    Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        MacroCell(
-            label = "kcal",
-            unit = "",
-            baseValue = food.nutritionFacts.energy.value,
-            currentValue = facts.energy.value,
-            onSetWeight = measurementState::setWeightGrams,
-            borderColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
-        )
-        MacroCell(
-            label = "Prot.",
-            unit = "g",
-            baseValue = food.nutritionFacts.proteins.value,
-            currentValue = facts.proteins.value,
-            onSetWeight = measurementState::setWeightGrams,
-            borderColor = palette.proteinsOnSurfaceContainer,
-            modifier = Modifier.weight(1f),
-        )
-        MacroCell(
-            label = "Carbs",
-            unit = "g",
-            baseValue = food.nutritionFacts.carbohydrates.value,
-            currentValue = facts.carbohydrates.value,
-            onSetWeight = measurementState::setWeightGrams,
-            borderColor = palette.carbohydratesOnSurfaceContainer,
-            modifier = Modifier.weight(1f),
-        )
-        MacroCell(
-            label = "Grasa",
-            unit = "g",
-            baseValue = food.nutritionFacts.fats.value,
-            currentValue = facts.fats.value,
-            onSetWeight = measurementState::setWeightGrams,
-            borderColor = palette.fatsOnSurfaceContainer,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun MacroCell(
-    label: String,
-    unit: String,
-    baseValue: Double?,
-    currentValue: Double?,
-    onSetWeight: (Float) -> Unit,
-    borderColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    val textFieldState = rememberTextFieldState(currentValue?.formatClipZeros() ?: "")
-    var isFocused by remember { mutableStateOf(false) }
-
-    LaunchedEffect(currentValue) {
-        if (!isFocused) {
-            textFieldState.setTextAndPlaceCursorAtEnd(currentValue?.formatClipZeros() ?: "")
-        }
-    }
-
-    fun applyValue() {
-        val typed = textFieldState.text.toString().toDoubleOrNull()
-        if (typed != null && baseValue != null && baseValue > 0) {
-            onSetWeight((typed * 100.0 / baseValue).toFloat())
-        }
-    }
-
-    Surface(
-        modifier = modifier.border(1.dp, borderColor, MaterialTheme.shapes.medium),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (baseValue != null) {
-                BasicTextField(
-                    state = textFieldState,
-                    modifier = Modifier.fillMaxWidth().onFocusChanged {
-                        isFocused = it.isFocused
-                        if (!it.isFocused) applyValue()
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Done,
-                    ),
-                    onKeyboardAction = { applyValue() },
-                    textStyle = MaterialTheme.typography.titleMedium.copy(
-                        textAlign = TextAlign.Center,
-                        color = LocalContentColor.current,
-                    ),
-                    cursorBrush = SolidColor(LocalContentColor.current),
-                    lineLimits = TextFieldLineLimits.SingleLine,
-                    decorator = { innerTextField ->
-                        Box(contentAlignment = Alignment.Center) { innerTextField() }
-                    },
-                )
             } else {
-                Text(
-                    text = "?",
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            Text(
-                text = if (unit.isNotEmpty()) "$label ($unit)" else label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+                null
+            },
+    )
 }
 
-private fun parseNameAndBrand(combined: String): Pair<String, String?> {
-    val match = Regex("""\s*\((.+)\)$""").find(combined) ?: return Pair(combined, null)
-    val rawName = combined.substring(0, match.range.first)
-    val brand = match.groupValues[1].split(",").first().trim()
-    return Pair(rawName, brand.ifEmpty { null })
-}
+/** What the detail screen - and an ingredient's editor - need to draw a diary food. */
+internal fun DiaryFood.toFoodDetailUi(): FoodDetailUi =
+    FoodDetailUi(
+        name = name,
+        emoji = diaryCategory().emoji,
+        nutritionFacts = nutritionFacts,
+        isLiquid = isLiquid,
+        note = note,
+        totalWeight = totalWeight,
+        servingWeight = servingWeight,
+        source = (this as? DiaryFoodProduct)?.source,
+        weightOf = ::weight,
+    )

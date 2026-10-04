@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Mi cuenta · Food You{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{ admin.username }}</p>
+    <h1>Mi cuenta</h1>
+  </div>
+</div>
+<div class="card" style="max-width: 560px;">
+  <div class="card-head">
+    <div>
+      <h2>Cambiar contraseña</h2>
+      <p>Al menos 10 caracteres, sin tildes ni eñes. Guárdala en tu gestor de contraseñas.</p>
+    </div>
+  </div>
+  {% if error %}<div class="notice bad" style="margin-bottom: 16px;" role="alert">{{ error }}</div>{% endif %}
+  <form class="stack" method="post" action="/admin/account">
+    <label>Contraseña actual
+      <input type="password" name="current" autocomplete="current-password" required>
+    </label>
+    <label>Nueva contraseña
+      <input type="password" name="new" autocomplete="new-password" minlength="10" required>
+    </label>
+    <label>Repite la nueva
+      <input type="password" name="repeat" autocomplete="new-password" minlength="10" required>
+    </label>
+    <div class="row"><button class="btn" type="submit">Cambiar contraseña</button></div>
+  </form>
+</div>
+{% endblock %}
